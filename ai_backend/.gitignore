@@ -1,0 +1,128 @@
+# ========================
+# Environment & Secrets
+# ========================
+.env
+.env.local
+.env.*.local
+*.env
+
+# ========================
+# Virtual Environments
+# ========================
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# ========================
+# Python Cache & Compiled
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# ========================
+# UV Package Manager
+# ========================
+.uv/
+uv.lock
+
+# ========================
+# Distribution / Packaging
+# ========================
+build/
+dist/
+eggs/
+*.egg-info/
+*.egg
+.eggs/
+sdist/
+wheels/
+*.whl
+
+# ========================
+# Testing
+# ========================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.coverage
+
+# ========================
+# IDE & Editors
+# ========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ========================
+# OS Generated
+# ========================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ========================
+# Logs
+# ========================
+*.log
+logs/
+log/
+
+# ========================
+# Temporary Files
+# ========================
+tmp/
+temp/
+*.tmp
+*.bak
+
+# ========================
+# Database
+# ========================
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================
+# Uploads & Media
+# ========================
+uploads/
+media/
+static/uploads/
+
+# ========================
+# Jupyter Notebooks
+# ========================
+.ipynb_checkpoints/
+*.ipynb
+
+# ========================
+# MyPy
+# ========================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ========================
+# Ruff / Linting
+# ========================
+.ruff_cache/
