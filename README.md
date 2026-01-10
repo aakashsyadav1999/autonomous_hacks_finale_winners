@@ -42,7 +42,7 @@ cp .env.example .env
 
 ```bash
 # Run the FastAPI server
-uv run uvicorn main:app --reload --port 8000
+uv run uvicorn main:app --reload --port 8080
 ```
 
 ## API Endpoints
