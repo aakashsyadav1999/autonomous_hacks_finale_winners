@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import get_settings
-from app.api.routes import complaint_routes
+from app.api.routes import complaint_routes, verification_routes
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +55,10 @@ app.add_middleware(
 # Include routers
 app.include_router(
     complaint_routes.router,
+    prefix=settings.API_V1_PREFIX,
+)
+app.include_router(
+    verification_routes.router,
     prefix=settings.API_V1_PREFIX,
 )
 
