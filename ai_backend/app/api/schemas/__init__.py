@@ -10,6 +10,9 @@ from app.api.schemas.complaint import (
     CATEGORY_DEPARTMENT_MAP,
     WorkVerificationRequest,
     WorkVerificationResponse,
+    TicketData,
+    PredictiveAnalysisRequest,
+    PredictiveAnalysisResponse,
 )
 
 __all__ = [
@@ -23,4 +26,7 @@ __all__ = [
     "CATEGORY_DEPARTMENT_MAP",
     "WorkVerificationRequest",
     "WorkVerificationResponse",
+    "TicketData",
+    "PredictiveAnalysisRequest",
+    "PredictiveAnalysisResponse",
 ]

@@ -159,3 +159,65 @@ class WorkVerificationResponse(BaseModel):
         description="Error message if verification failed"
     )
 
+
+class TicketData(BaseModel):
+    """Schema for historical ticket data used in predictive analysis."""
+    
+    ticket_number: str = Field(
+        ...,
+        description="Unique ticket identifier"
+    )
+    category: str = Field(
+        ...,
+        description="Category of the civic issue"
+    )
+    severity: str = Field(
+        ...,
+        description="Severity level: Low, Medium, or High"
+    )
+    department: str = Field(
+        ...,
+        description="Department responsible for handling"
+    )
+    ward_no: str = Field(
+        ...,
+        description="Ward number"
+    )
+    ward_name: str = Field(
+        ...,
+        description="Ward name"
+    )
+    created_at: str = Field(
+        ...,
+        description="Ticket creation timestamp (ISO format)"
+    )
+    resolved_at: Optional[str] = Field(
+        default=None,
+        description="Ticket resolution timestamp (ISO format), null if unresolved"
+    )
+
+
+class PredictiveAnalysisRequest(BaseModel):
+    """Request schema for predictive analysis."""
+    
+    tickets: List[TicketData] = Field(
+        ...,
+        description="List of historical tickets from the past 30 days"
+    )
+
+
+class PredictiveAnalysisResponse(BaseModel):
+    """Response schema for predictive analysis."""
+    
+    report_html: str = Field(
+        ...,
+        description="HTML formatted predictive analysis report"
+    )
+    generated_at: str = Field(
+        ...,
+        description="Report generation timestamp (ISO format)"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message if analysis failed"
+    )
