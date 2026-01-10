@@ -1,12 +1,12 @@
 """
 Django Admin Configuration for User Portal.
 
-Registers CivicComplaint and Ticket models with customized admin interface.
+Registers CivicComplaint, Ticket, and TicketNote models with customized admin interface.
 """
 
 from django.contrib import admin
 from django.utils.html import format_html
-from user_portal.models import CivicComplaint, Ticket
+from user_portal.models import CivicComplaint, Ticket, TicketNote
 
 
 @admin.register(CivicComplaint)
@@ -138,3 +138,43 @@ class TicketAdmin(admin.ModelAdmin):
         Admin can change status and assign contractor/ward.
         """
         super().save_model(request, obj, form, change)
+
+@admin.register(TicketNote)
+class TicketNoteAdmin(admin.ModelAdmin):
+    """
+    Admin interface for TicketNote model.
+    
+    Features:
+    - List view with ticket, note type, and creator
+    - Filters for note type and creation date
+    - Search by ticket number and content
+    """
+    
+    list_display = [
+        'id',
+        'ticket',
+        'note_type',
+        'content_preview',
+        'created_by',
+        'created_at'
+    ]
+    
+    list_filter = ['note_type', 'created_at']
+    
+    search_fields = ['ticket__ticket_number', 'content', 'created_by__username']
+    
+    readonly_fields = ['created_at']
+    
+    fieldsets = (
+        ('Note Information', {
+            'fields': ('ticket', 'note_type', 'content')
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_at')
+        }),
+    )
+    
+    def content_preview(self, obj):
+        """Display truncated content in list view."""
+        return obj.content[:100] + '...' if len(obj.content) > 100 else obj.content
+    content_preview.short_description = 'Content'

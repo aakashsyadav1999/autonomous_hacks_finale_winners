@@ -192,6 +192,14 @@ class Ticket(models.Model):
         ('RESOLVED', 'Resolved'),
     ]
     
+    # Standardized department choices (matching category → department mapping)
+    DEPARTMENT_CHOICES = [
+        ('Sanitation Department', 'Sanitation Department'),
+        ('Roads & Infrastructure', 'Roads & Infrastructure'),
+        ('Water Supply Department', 'Water Supply Department'),
+        ('Drainage Department', 'Drainage Department'),
+    ]
+    
     # Unique ticket identifier (format: CMP-YYYYMMDD-NNN)
     ticket_number = models.CharField(
         max_length=20,
@@ -221,7 +229,9 @@ class Ticket(models.Model):
     
     department = models.CharField(
         max_length=100,
-        help_text="Responsible department (e.g., PWD, Sanitation Dept)"
+        choices=DEPARTMENT_CHOICES,
+        db_index=True,
+        help_text="Responsible department (standardized from AI classification)"
     )
     
     # Current ticket status
@@ -304,3 +314,64 @@ class Ticket(models.Model):
         else:
             super().save(*args, **kwargs)
 
+
+class TicketNote(models.Model):
+    """
+    Represents notes/comments added to tickets by admin staff.
+    
+    Provides an audit trail of actions taken on each ticket,
+    including status changes, assignments, and general observations.
+    Useful for tracking work progress and communication history.
+    """
+    
+    NOTE_TYPE_CHOICES = [
+        ('STATUS_CHANGE', 'Status Change'),
+        ('ASSIGNMENT', 'Assignment'),
+        ('COMMENT', 'Comment'),
+        ('SYSTEM', 'System Generated'),
+    ]
+    
+    ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name='notes',
+        help_text="Ticket this note belongs to"
+    )
+    
+    note_type = models.CharField(
+        max_length=20,
+        choices=NOTE_TYPE_CHOICES,
+        default='COMMENT',
+        help_text="Type of note for filtering and display"
+    )
+    
+    content = models.TextField(
+        help_text="Note content (action description, observations, etc.)"
+    )
+    
+    created_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ticket_notes',
+        help_text="Staff user who created this note (null for system-generated)"
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="When note was created"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['ticket', 'created_at']),
+            models.Index(fields=['note_type', 'created_at']),
+        ]
+        verbose_name = 'Ticket Note'
+        verbose_name_plural = 'Ticket Notes'
+    
+    def __str__(self):
+        return f"{self.ticket.ticket_number} - {self.note_type} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"

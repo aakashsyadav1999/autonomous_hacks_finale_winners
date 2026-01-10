@@ -1,0 +1,255 @@
+{% extends 'admin_portal/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards Row -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stats-card">
+            <div class="stats-icon primary">
+                <i class="bi bi-clipboard-data"></i>
+            </div>
+            <div class="stats-value">{{ total_tickets }}</div>
+            <div class="stats-label">Total Tickets</div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stats-card">
+            <div class="stats-icon warning">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="stats-value">{{ submitted_count }}</div>
+            <div class="stats-label">Submitted</div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stats-card">
+            <div class="stats-icon info">
+                <i class="bi bi-gear"></i>
+            </div>
+            <div class="stats-value">{{ in_progress_count }}</div>
+            <div class="stats-label">In Progress</div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stats-card">
+            <div class="stats-icon success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stats-value">{{ resolved_count }}</div>
+            <div class="stats-label">Resolved</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title mb-3">Tickets Today</h5>
+                <div class="display-6 text-primary fw-bold">{{ tickets_today }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title mb-3">This Week</h5>
+                <div class="display-6 text-info fw-bold">{{ tickets_week }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title mb-3">This Month</h5>
+                <div class="display-6 text-success fw-bold">{{ tickets_month }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bar-chart"></i> Department-wise Status</span>
+            </div>
+            <div class="card-body">
+                <canvas id="departmentChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> Status Distribution
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Tickets & Top Contractors -->
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-clock-history"></i> Recent Tickets
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Ticket #</th>
+                                <th>Category</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in recent_tickets %}
+                            <tr>
+                                <td><span class="badge bg-primary">{{ ticket.ticket_number }}</span></td>
+                                <td>{{ ticket.category }}</td>
+                                <td><small class="text-muted">{{ ticket.department }}</small></td>
+                                <td>
+                                    <span class="badge 
+                                        {% if ticket.status == 'SUBMITTED' %}bg-warning
+                                        {% elif ticket.status == 'ASSIGNED' %}bg-info
+                                        {% elif ticket.status == 'IN_PROGRESS' %}bg-primary
+                                        {% else %}bg-success{% endif %}">
+                                        {{ ticket.get_status_display }}
+                                    </span>
+                                </td>
+                                <td><small>{{ ticket.created_at|date:"M d, H:i" }}</small></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No recent tickets</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-star"></i> Top Contractors
+            </div>
+            <div class="card-body">
+                {% for contractor in top_contractors %}
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                    <div>
+                        <div class="fw-semibold">{{ contractor.contractor_name }}</div>
+                        <small class="text-muted">{{ contractor.department }}</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-warning">
+                            {% if contractor.ratings %}
+                                {{ contractor.ratings|floatformat:1 }} <i class="bi bi-star-fill"></i>
+                            {% else %}
+                                <small class="text-muted">No ratings</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-center text-muted">No contractors rated yet</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Department Chart
+    const departmentData = {{ department_stats|safe|default:"[]" }};
+    const departmentNames = departmentData.map(d => d.department);
+    const departmentTotals = departmentData.map(d => d.total);
+    const departmentSubmitted = departmentData.map(d => d.submitted);
+    const departmentAssigned = departmentData.map(d => d.assigned);
+    const departmentInProgress = departmentData.map(d => d.in_progress);
+    const departmentResolved = departmentData.map(d => d.resolved);
+    
+    new Chart(document.getElementById('departmentChart'), {
+        type: 'bar',
+        data: {
+            labels: departmentNames,
+            datasets: [
+                {
+                    label: 'Submitted',
+                    data: departmentSubmitted,
+                    backgroundColor: '#F59E0B'
+                },
+                {
+                    label: 'Assigned',
+                    data: departmentAssigned,
+                    backgroundColor: '#3B82F6'
+                },
+                {
+                    label: 'In Progress',
+                    data: departmentInProgress,
+                    backgroundColor: '#818CF8'
+                },
+                {
+                    label: 'Resolved',
+                    data: departmentResolved,
+                    backgroundColor: '#10B981'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            }
+        }
+    });
+    
+    // Status Pie Chart
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Submitted', 'Assigned', 'In Progress', 'Resolved'],
+            datasets: [{
+                data: [{{ submitted_count }}, {{ assigned_count }}, {{ in_progress_count }}, {{ resolved_count }}],
+                backgroundColor: ['#F59E0B', '#3B82F6', '#818CF8', '#10B981']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true
+        }
+    });
+</script>
+{% endblock %}

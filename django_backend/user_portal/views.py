@@ -321,27 +321,54 @@ class SubmitComplaintView(APIView):
                 "data": [
                     {
                         "severity": "High",
-                        "category": "Roads",
-                        "department": "PWD"
+                        "category": "Garbage/Waste accumulation",
+                        "department": "Sanitation Department"
                     },
                     {
                         "severity": "Medium",
-                        "category": "Drainage",
-                        "department": "Sanitation Department"
+                        "category": "Manholes/drainage opening damage",
+                        "department": "Roads & Infrastructure"
                     }
                 ]
             }
+        
+        Department Mapping (AI should return one of these):
+            - "Sanitation Department" (for garbage/waste issues)
+            - "Roads & Infrastructure" (for road/manhole issues)
+            - "Water Supply Department" (for water leakage)
+            - "Drainage Department" (for drainage overflow)
         """
-        # MOCK: Always return valid with sample data
+        # MOCK: Always return valid with standardized department name
+        # Randomly choose one of the four departments for testing
+        import random
+        
+        departments = [
+            {
+                'severity': 'High',
+                'category': 'Garbage/Waste accumulation',
+                'department': 'Sanitation Department'
+            },
+            {
+                'severity': 'Medium',
+                'category': 'Manholes/drainage opening damage',
+                'department': 'Roads & Infrastructure'
+            },
+            {
+                'severity': 'High',
+                'category': 'Water leakage',
+                'department': 'Water Supply Department'
+            },
+            {
+                'severity': 'Critical',
+                'category': 'Drainage overflow',
+                'department': 'Drainage Department'
+            }
+        ]
+        
+        # Return one random department issue for testing
         return {
             'is_valid': True,
-            'data': [
-                {
-                    'severity': 'High',
-                    'category': 'Road Damage',
-                    'department': 'Public Works Department (PWD)'
-                }
-            ]
+            'data': [random.choice(departments)]
         }
 
 

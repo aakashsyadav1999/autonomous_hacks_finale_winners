@@ -22,8 +22,13 @@ from user_portal.urls import template_urlpatterns
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-        # API endpoints
+    
+    # API endpoints
     path('api/user/', include('user_portal.urls')),
+    
+    # Admin Portal (staff-only)
+    path('admin-portal/', include('admin_portal.urls')),
+    
     # Template pages
     path('', include(template_urlpatterns)),
 ]
