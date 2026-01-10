@@ -20,6 +20,8 @@ from django.db import transaction
 from django.shortcuts import render, get_object_or_404
 from django.views.generic import TemplateView
 
+from contractor_portal.fastapi_client import analyze_complaint_image, FastAPIError
+
 from user_portal.models import CivicComplaint, Ticket
 from user_portal.serializers import (
     PhotoCaptureSerializer,
@@ -239,9 +241,8 @@ class SubmitComplaintView(APIView):
         complaint.is_submit = True
         complaint.save()
         
-        # Call AI validation (MOCK implementation)
-        # TODO: Replace with actual FastAPI call when ready
-        ai_response = self._mock_ai_validation(complaint)
+        # Call AI validation using FastAPI
+        ai_response = self._call_ai_validation(complaint)
         
         if not ai_response['is_valid']:
             # Delete invalid complaint
@@ -252,7 +253,7 @@ class SubmitComplaintView(APIView):
             return Response({
                 'success': False,
                 'message': 'Photo validation failed. Please capture a valid civic issue.',
-                'reason': 'AI did not detect any civic complaints in the image'
+                'reason': ai_response.get('error_message', 'AI did not detect any civic complaints in the image')
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Create tickets from AI response
@@ -296,51 +297,94 @@ class SubmitComplaintView(APIView):
                 'error': 'Failed to create tickets. Please contact support.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    def _mock_ai_validation(self, complaint):
+    def _call_ai_validation(self, complaint):
         """
-        MOCK AI validation response.
+        Call FastAPI AI service for complaint validation.
         
-        TODO: Replace with actual FastAPI integration.
+        Args:
+            complaint: CivicComplaint instance
         
-        Expected FastAPI request:
-            POST /api/validate-complaint
-            {
-                "image_base64": "...",
-                "location": {
-                    "street": "...",
-                    "area": "...",
-                    "postal_code": "...",
-                    "latitude": 23.0225,
-                    "longitude": 72.5714
-                }
+        Returns:
+            dict: {
+                'is_valid': bool,
+                'data': list of issue dicts OR empty list,
+                'error_message': str (if error occurred)
             }
         
-        Expected FastAPI response:
+        FastAPI endpoint: POST /api/v1/analyze/complaint
+        Request payload:
+            {
+                "image": "base64_encoded_string",
+                "street": "Street Name",
+                "area": "Area Name",
+                "postal_code": "380001",
+                "latitude": 23.0225,
+                "longitude": 72.5714
+            }
+        
+        Expected response:
             {
                 "is_valid": true,
-                "data": [
+                "issues": [
                     {
                         "severity": "High",
                         "category": "Garbage/Waste accumulation",
-                        "department": "Sanitation Department"
-                    },
-                    {
-                        "severity": "Medium",
-                        "category": "Manholes/drainage opening damage",
-                        "department": "Roads & Infrastructure"
+                        "department": "Sanitation"
                     }
                 ]
             }
-        
-        Department Mapping (AI should return one of these):
-            - "Sanitation Department" (for garbage/waste issues)
-            - "Roads & Infrastructure" (for road/manhole issues)
-            - "Water Supply Department" (for water leakage)
-            - "Drainage Department" (for drainage overflow)
         """
-        # MOCK: Always return valid with standardized department name
-        # Randomly choose one of the four departments for testing
+        try:
+            # Call FastAPI with image path and location
+            is_valid, data_list, error_message = analyze_complaint_image(
+                image_path=complaint.image.path,
+                street=complaint.street,
+                area=complaint.area,
+                postal_code=complaint.postal_code,
+                latitude=float(complaint.latitude) if complaint.latitude else None,
+                longitude=float(complaint.longitude) if complaint.longitude else None
+            )
+            
+            if is_valid:
+                logger.info(f"AI validation successful for complaint {complaint.id}: {len(data_list)} issue(s) detected")
+                return {
+                    'is_valid': True,
+                    'data': data_list
+                }
+            else:
+                logger.warning(f"AI validation failed for complaint {complaint.id}: {error_message}")
+                return {
+                    'is_valid': False,
+                    'data': [],
+                    'error_message': error_message or 'AI could not detect valid civic complaints'
+                }
+        
+        except FastAPIError as e:
+            # Log FastAPI errors but fall back to mock validation
+            logger.error(f"FastAPI error for complaint {complaint.id}: {str(e)}")
+            logger.info("Falling back to mock AI validation due to FastAPI error")
+            return self._mock_ai_validation(complaint)
+        
+        except Exception as e:
+            # Log unexpected errors but fall back to mock validation
+            logger.error(f"Unexpected error calling AI service for complaint {complaint.id}: {str(e)}")
+            logger.info("Falling back to mock AI validation due to unexpected error")
+            return self._mock_ai_validation(complaint)
+    
+    def _mock_ai_validation(self, complaint):
+        """
+        MOCK AI validation as fallback when FastAPI is unavailable.
+        
+        This is used when:
+        1. FastAPI service is down or unreachable
+        2. Network errors occur
+        3. Environment variable FASTAPI_BASE_URL is not set
+        
+        Returns random valid complaint data for testing purposes.
+        """
         import random
+        
+        logger.warning(f"Using MOCK AI validation for complaint {complaint.id}")
         
         departments = [
             {
@@ -365,7 +409,7 @@ class SubmitComplaintView(APIView):
             }
         ]
         
-        # Return one random department issue for testing
+        # Return one random department issue
         return {
             'is_valid': True,
             'data': [random.choice(departments)]

@@ -726,6 +726,26 @@
                             <div class="info-label">Severity</div>
                             <div class="info-value">${data.severity}</div>
                         </div>
+                        ${data.suggested_tools ? `
+                        <div class="info-item">
+                            <div class="info-label"><i class="bi bi-tools me-1"></i>Suggested Tools</div>
+                            <div class="info-value">
+                                ${data.suggested_tools.split(',').map(tool => 
+                                    `<span class="badge bg-primary me-1 mb-1">${tool.trim()}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                        ${data.safety_equipment ? `
+                        <div class="info-item">
+                            <div class="info-label"><i class="bi bi-shield-check me-1"></i>Safety Equipment</div>
+                            <div class="info-value">
+                                ${data.safety_equipment.split(',').map(equipment => 
+                                    `<span class="badge bg-warning me-1 mb-1">${equipment.trim()}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
                         <div class="info-item">
                             <div class="info-label">Location</div>
                             <div class="info-value">${data.complaint.area}, ${data.complaint.street}</div>

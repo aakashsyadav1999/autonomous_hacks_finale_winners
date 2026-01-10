@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     # Local apps
     'user_portal',
     'admin_portal',
+    'contractor_portal',
 ]
 
 MIDDLEWARE = [

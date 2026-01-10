@@ -234,6 +234,19 @@ class Ticket(models.Model):
         help_text="Responsible department (standardized from AI classification)"
     )
     
+    # AI-suggested resources (comma-separated values from analyze_complaint)
+    suggested_tools = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Comma-separated list of recommended tools (e.g., 'Broom, Garbage bags, Shovel')"
+    )
+    
+    safety_equipment = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Comma-separated list of required safety equipment (e.g., 'Gloves, Mask, Safety boots')"
+    )
+    
     # Current ticket status
     status = models.CharField(
         max_length=20,
@@ -268,6 +281,13 @@ class Ticket(models.Model):
         blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         help_text="Citizen rating of work quality (1-5 stars)"
+    )
+    
+    # AI verification status (tracks if contractor's work was AI-verified)
+    ai_verified = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True if AI has verified contractor's completion photo"
     )
     
     # Audit timestamps

@@ -1,0 +1,450 @@
+{% extends 'contractor_portal/base.html' %}
+
+{% block title %}Ticket {{ ticket.ticket_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ticket-image {
+        width: 100%;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-item {
+        padding: 1rem;
+        background-color: #F9FAFB;
+        border-radius: 8px;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: #6B7280;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        color: #1F2937;
+        font-weight: 600;
+    }
+    
+    .map-button {
+        background: linear-gradient(135deg, #3B82F6, #2563EB);
+        border: none;
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        width: 100%;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .map-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        color: white;
+    }
+    
+    .upload-section {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+        border: 2px dashed #10B981;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+        max-width: 400px;
+        margin: 1rem auto;
+    }
+    
+    .file-input-wrapper input[type=file] {
+        position: absolute;
+        left: -9999px;
+    }
+    
+    .file-input-label {
+        display: block;
+        padding: 1rem 2rem;
+        background: white;
+        border: 2px solid #10B981;
+        color: #10B981;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .file-input-label:hover {
+        background: #10B981;
+        color: white;
+    }
+    
+    #imagePreview {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+    }
+    
+    .completion-card {
+        background: rgba(16, 185, 129, 0.05);
+        border: 2px solid #10B981;
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+    
+    .verification-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    .verification-badge.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10B981;
+    }
+    
+    .verification-badge.failed {
+        background: rgba(239, 68, 68, 0.1);
+        color: #EF4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'contractor_portal:dashboard' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <!-- Left Column: Ticket Details -->
+    <div class="col-lg-8">
+        <div class="card-custom p-4 mb-4">
+            <h4 class="fw-bold mb-3">Ticket {{ ticket.ticket_number }}</h4>
+            
+            {% if ticket.civic_complaint.image %}
+            <img src="{{ ticket.civic_complaint.image.url }}" alt="Complaint" class="ticket-image">
+            {% endif %}
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">
+                        {% if ticket.status == 'ASSIGNED' %}
+                        <span class="badge bg-info">Assigned</span>
+                        {% elif ticket.status == 'IN_PROGRESS' %}
+                        <span class="badge bg-primary">In Progress</span>
+                        {% elif ticket.status == 'RESOLVED' %}
+                        <span class="badge bg-success">Resolved</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Category</div>
+                    <div class="info-value">{{ ticket.category }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Department</div>
+                    <div class="info-value">{{ ticket.department }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Severity</div>
+                    <div class="info-value">
+                        {% if ticket.severity == 'High' or ticket.severity == 'Critical' %}
+                        <span class="badge bg-danger">{{ ticket.severity }}</span>
+                        {% elif ticket.severity == 'Medium' %}
+                        <span class="badge bg-warning">{{ ticket.severity }}</span>
+                        {% else %}
+                        <span class="badge bg-info">{{ ticket.severity }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if ticket.suggested_tools %}
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="bi bi-tools me-1"></i>Suggested Tools
+                    </div>
+                    <div class="info-value">
+                        {% for tool in suggested_tools_list %}
+                        <span class="badge bg-primary me-1 mb-1">{{ tool }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if ticket.safety_equipment %}
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="bi bi-shield-check me-1"></i>Safety Equipment
+                    </div>
+                    <div class="info-value">
+                        {% for equipment in safety_equipment_list %}
+                        <span class="badge bg-warning me-1 mb-1">{{ equipment }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Location</div>
+                    <div class="info-value">{{ ticket.civic_complaint.area }}</div>
+                    <small class="text-muted">{{ ticket.civic_complaint.street }}</small>
+                </div>
+                
+                {% if ticket.ward %}
+                <div class="info-item">
+                    <div class="info-label">Ward</div>
+                    <div class="info-value">Ward #{{ ticket.ward.ward_no }}</div>
+                    <small class="text-muted">{{ ticket.ward.ward_name }}</small>
+                </div>
+                {% endif %}
+                
+                <div class="info-item">
+                    <div class="info-label">Created</div>
+                    <div class="info-value">{{ ticket.created_at|date:"M d, Y" }}</div>
+                    <small class="text-muted">{{ ticket.created_at|time:"H:i" }}</small>
+                </div>
+            </div>
+            
+            <!-- Google Maps Button -->
+            <a href="{{ google_maps_url }}" target="_blank" class="map-button">
+                <i class="bi bi-geo-alt-fill me-2"></i>
+                Open in Google Maps
+            </a>
+        </div>
+        
+        <!-- Work Completion Status -->
+        {% if completion %}
+        <div class="completion-card">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Work Completion Submitted
+            </h5>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <img src="{{ completion.after_image.url }}" alt="After Work" class="img-fluid rounded">
+                    <p class="text-center mt-2 text-muted small">After-work photo</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-item mb-3">
+                        <div class="info-label">Submission Date</div>
+                        <div class="info-value">{{ completion.submitted_at|date:"M d, Y H:i" }}</div>
+                    </div>
+                    
+                    <div class="info-item mb-3">
+                        <div class="info-label">Distance from Location</div>
+                        <div class="info-value">{{ completion.distance_from_original|floatformat:1 }}m</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">AI Verification</div>
+                        <div class="info-value">
+                            {% if completion.ai_verified %}
+                            <span class="verification-badge success">
+                                <i class="bi bi-check-circle-fill"></i> Verified
+                            </span>
+                            {% else %}
+                            <span class="verification-badge failed">
+                                <i class="bi bi-x-circle-fill"></i> Not Verified
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if completion.ai_verification_message %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        {{ completion.ai_verification_message }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Right Column: Upload Section -->
+    <div class="col-lg-4">
+        {% if not completion %}
+        <div class="card-custom p-4">
+            <h5 class="fw-bold mb-3">Complete Work</h5>
+            <p class="text-muted small mb-4">
+                Upload a photo of the completed work. You must be within 50 meters of the work location.
+            </p>
+            
+            <form id="completionForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="upload-section mb-3">
+                    <i class="bi bi-camera" style="font-size: 3rem; color: #10B981;"></i>
+                    <h6 class="mt-3 fw-bold">Upload After-Work Photo</h6>
+                    <p class="text-muted small">Take a clear photo showing the completed work</p>
+                    
+                    <div class="file-input-wrapper">
+                        <input type="file" 
+                               name="after_image" 
+                               id="afterImage" 
+                               accept="image/*"
+                               capture="environment"
+                               required>
+                        <label for="afterImage" class="file-input-label">
+                            <i class="bi bi-upload me-2"></i>Choose Photo
+                        </label>
+                    </div>
+                    
+                    <img id="imagePreview" alt="Preview">
+                    
+                    <div id="fileName" class="text-muted small mt-2"></div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <small>We'll verify your location automatically when you submit.</small>
+                </div>
+                
+                <input type="hidden" name="latitude" id="latitude">
+                <input type="hidden" name="longitude" id="longitude">
+                
+                <button type="submit" class="btn btn-primary-custom w-100" id="submitBtn">
+                    <i class="bi bi-check-circle me-2"></i>Submit Completion
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Work Completed!</strong><br>
+            Your completion has been submitted and
+            {% if completion.ai_verified %}
+            AI has verified your work.
+            {% else %}
+            is pending review.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Preview selected image
+    document.getElementById('afterImage').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('fileName').textContent = file.name;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Get user's current location
+    function getUserLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation is not supported by your browser'));
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    resolve({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    });
+                },
+                error => {
+                    reject(new Error('Unable to retrieve your location. Please enable location services.'));
+                }
+            );
+        });
+    }
+    
+    // Handle form submission
+    document.getElementById('completionForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const formData = new FormData(this);
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Getting location...';
+        
+        try {
+            // Get user's current location
+            const location = await getUserLocation();
+            
+            // Add location to form data
+            formData.set('latitude', location.latitude);
+            formData.set('longitude', location.longitude);
+            
+            // Update button text
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+            
+            // Submit form
+            const response = await fetch('{% url "contractor_portal:submit_completion" ticket.id %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrftoken
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast(result.message, result.ai_verified ? 'success' : 'warning');
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                showToast(result.error, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Submit Completion';
+            }
+        } catch (error) {
+            showToast(error.message, 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Submit Completion';
+        }
+    });
+</script>
+{% endblock %}

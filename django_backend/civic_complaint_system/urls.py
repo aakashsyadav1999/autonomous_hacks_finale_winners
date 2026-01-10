@@ -29,6 +29,9 @@ urlpatterns = [
     # Admin Portal (staff-only)
     path('admin-portal/', include('admin_portal.urls')),
     
+    # Contractor Portal (contractor users)
+    path('contractor/', include('contractor_portal.urls')),
+    
     # Template pages
     path('', include(template_urlpatterns)),
 ]
