@@ -7,6 +7,8 @@ from app.api.schemas.complaint import (
     CategoryType,
     DepartmentType,
     CATEGORY_DEPARTMENT_MAP,
+    WorkVerificationRequest,
+    WorkVerificationResponse,
 )
 
 __all__ = [
@@ -17,4 +19,6 @@ __all__ = [
     "CategoryType",
     "DepartmentType",
     "CATEGORY_DEPARTMENT_MAP",
+    "WorkVerificationRequest",
+    "WorkVerificationResponse",
 ]

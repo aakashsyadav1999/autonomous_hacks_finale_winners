@@ -63,7 +63,9 @@ async def analyze_complaint(request: ComplaintAnalysisRequest) -> ComplaintAnaly
             DetectedIssue(
                 category=issue["category"],
                 department=issue["department"],
-                severity=issue["severity"]
+                severity=issue["severity"],
+                suggested_tools=issue.get("suggested_tools", []),
+                safety_equipment=issue.get("safety_equipment", [])
             )
             for issue in result["data"]
         ]

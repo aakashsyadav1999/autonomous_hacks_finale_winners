@@ -82,6 +82,14 @@ class DetectedIssue(BaseModel):
         ..., 
         description="Severity level: Low, Medium, or High"
     )
+    suggested_tools: List[str] = Field(
+        default_factory=list,
+        description="List of suggested tools to resolve the issue"
+    )
+    safety_equipment: List[str] = Field(
+        default_factory=list,
+        description="List of mandatory safety equipment for workers"
+    )
 
 
 class ComplaintAnalysisResponse(BaseModel):
@@ -99,3 +107,34 @@ class ComplaintAnalysisResponse(BaseModel):
         default=None,
         description="Error message if image is invalid or processing failed"
     )
+
+
+class WorkVerificationRequest(BaseModel):
+    """Request schema for work completion verification."""
+    
+    before_image: str = Field(
+        ..., 
+        description="Base64 encoded original complaint image"
+    )
+    after_image: str = Field(
+        ..., 
+        description="Base64 encoded contractor completion image"
+    )
+    category: str = Field(
+        ..., 
+        description="Category of the original complaint (e.g., 'Garbage/Waste accumulation')"
+    )
+
+
+class WorkVerificationResponse(BaseModel):
+    """Response schema for work completion verification."""
+    
+    is_completed: bool = Field(
+        ..., 
+        description="Whether the work has been completed successfully"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message if verification failed"
+    )
+
