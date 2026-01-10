@@ -82,6 +82,14 @@ class DetectedIssue(BaseModel):
         ..., 
         description="Severity level: Low, Medium, or High"
     )
+    suggested_tools: List[str] = Field(
+        default_factory=list,
+        description="List of suggested tools to resolve the issue"
+    )
+    safety_equipment: List[str] = Field(
+        default_factory=list,
+        description="List of mandatory safety equipment for workers"
+    )
 
 
 class ComplaintAnalysisResponse(BaseModel):
