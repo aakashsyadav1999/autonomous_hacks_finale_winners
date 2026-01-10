@@ -1,0 +1,423 @@
+{% extends 'user_portal/base.html' %}
+
+{% block title %}Track Ticket - Smart Civic Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-box {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .ticket-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-top: 30px;
+    }
+    
+    .status-timeline {
+        position: relative;
+        padding-left: 40px;
+        margin: 30px 0;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 25px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -28px;
+        top: 8px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e9ecef;
+        border: 3px solid #dee2e6;
+    }
+    
+    .timeline-item.active::before {
+        background: #667eea;
+        border-color: #667eea;
+        box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+    }
+    
+    .timeline-item::after {
+        content: '';
+        position: absolute;
+        left: -21px;
+        top: 24px;
+        width: 2px;
+        height: calc(100% - 16px);
+        background: #dee2e6;
+    }
+    
+    .timeline-item:last-child::after {
+        display: none;
+    }
+    
+    .timeline-item.active::after {
+        background: #667eea;
+    }
+    
+    .ticket-image {
+        max-width: 100%;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .ticket-image:hover {
+        transform: scale(1.02);
+    }
+    
+    .star-rating {
+        display: inline-flex;
+        gap: 5px;
+    }
+    
+    .star {
+        font-size: 2rem;
+        color: #ddd;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .star.filled {
+        color: #ffc107;
+    }
+    
+    .star:hover {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1><i class="bi bi-search"></i> Track Your Ticket</h1>
+        <p class="mb-0 mt-2">Enter your ticket number to check status</p>
+    </div>
+    <div class="card-body">
+        <!-- Search Box -->
+        <div class="search-box">
+            <div class="input-group input-group-lg">
+                <input 
+                    type="text" 
+                    class="form-control" 
+                    id="ticket-input" 
+                    placeholder="Enter ticket number (e.g., CMP-20260110-001)"
+                    style="border-radius: 10px 0 0 10px;">
+                <button class="btn btn-primary" type="button" id="search-btn" style="border-radius: 0 10px 10px 0;">
+                    <i class="bi bi-search"></i> Track
+                </button>
+            </div>
+            <div class="form-text text-center mt-2">
+                <i class="bi bi-info-circle"></i> Ticket number format: CMP-YYYYMMDD-NNN
+            </div>
+        </div>
+        
+        <!-- Ticket Details -->
+        <div id="ticket-details" class="ticket-card" style="display: none;">
+            <div class="row">
+                <!-- Left Column: Image & Basic Info -->
+                <div class="col-md-6">
+                    <h4 class="mb-3">
+                        <i class="bi bi-ticket-perforated"></i> 
+                        <span id="ticket-number-display"></span>
+                    </h4>
+                    
+                    <div id="ticket-image-container" class="mb-3">
+                        <img id="ticket-image" class="ticket-image" src="" alt="Complaint Photo" 
+                             onclick="window.open(this.src, '_blank')">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <span class="badge status-badge" id="status-badge">-</span>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong><i class="bi bi-exclamation-triangle"></i> Severity:</strong>
+                        <span id="severity-display">-</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong><i class="bi bi-tag"></i> Category:</strong>
+                        <span id="category-display">-</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong><i class="bi bi-building"></i> Department:</strong>
+                        <span id="department-display">-</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong><i class="bi bi-calendar"></i> Submitted:</strong>
+                        <span id="created-display">-</span>
+                    </div>
+                </div>
+                
+                <!-- Right Column: Status Timeline & Contact Info -->
+                <div class="col-md-6">
+                    <h5 class="mb-3"><i class="bi bi-clock-history"></i> Status Timeline</h5>
+                    
+                    <div class="status-timeline">
+                        <div class="timeline-item" id="timeline-submitted">
+                            <strong>Submitted</strong>
+                            <div class="text-muted small">Complaint received and under review</div>
+                        </div>
+                        <div class="timeline-item" id="timeline-assigned">
+                            <strong>Assigned</strong>
+                            <div class="text-muted small">Contractor assigned to resolve the issue</div>
+                        </div>
+                        <div class="timeline-item" id="timeline-in-progress">
+                            <strong>In Progress</strong>
+                            <div class="text-muted small">Work is currently underway</div>
+                        </div>
+                        <div class="timeline-item" id="timeline-resolved">
+                            <strong>Resolved</strong>
+                            <div class="text-muted small">Issue has been resolved</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contractor Info (shown when ASSIGNED) -->
+                    <div id="contractor-info" class="alert alert-info" style="display: none;">
+                        <h6><i class="bi bi-person-badge"></i> Assigned Contractor</h6>
+                        <p class="mb-1"><strong>Name:</strong> <span id="contractor-name">-</span></p>
+                        <p class="mb-0"><strong>Phone:</strong> <a id="contractor-phone" href="tel:">-</a></p>
+                    </div>
+                    
+                    <!-- Ward Info (shown when IN_PROGRESS) -->
+                    <div id="ward-info" class="alert alert-warning" style="display: none;">
+                        <h6><i class="bi bi-geo-alt"></i> Ward Information</h6>
+                        <p class="mb-1"><strong>Ward:</strong> <span id="ward-name">-</span></p>
+                        <p class="mb-1"><strong>Admin:</strong> <span id="ward-admin-name">-</span></p>
+                        <p class="mb-0"><strong>Phone:</strong> <a id="ward-admin-phone" href="tel:">-</a></p>
+                    </div>
+                    
+                    <!-- Rating (shown when RESOLVED and not rated) -->
+                    <div id="rating-section" class="alert alert-success" style="display: none;">
+                        <h6><i class="bi bi-star-fill"></i> Rate the Work</h6>
+                        <p class="mb-2">How satisfied are you with the resolution?</p>
+                        
+                        <div class="star-rating mb-3" id="star-rating">
+                            <span class="star" data-rating="1">★</span>
+                            <span class="star" data-rating="2">★</span>
+                            <span class="star" data-rating="3">★</span>
+                            <span class="star" data-rating="4">★</span>
+                            <span class="star" data-rating="5">★</span>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success" id="submit-rating-btn" disabled>
+                            <i class="bi bi-send-fill"></i> Submit Rating
+                        </button>
+                    </div>
+                    
+                    <!-- Rating Already Submitted -->
+                    <div id="rating-display" class="alert alert-light" style="display: none;">
+                        <h6><i class="bi bi-star-fill"></i> Your Rating</h6>
+                        <div id="user-rating-stars" style="color: #ffc107; font-size: 1.5rem;"></div>
+                        <p class="mb-0 mt-2 text-muted"><small>Thank you for your feedback!</small></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Not Found -->
+        <div id="not-found" class="text-center mt-4" style="display: none;">
+            <i class="bi bi-x-circle text-danger" style="font-size: 4rem;"></i>
+            <h4 class="mt-3">Ticket Not Found</h4>
+            <p class="text-muted">Please check the ticket number and try again.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedRating = 0;
+let currentTicketNumber = '';
+
+// Search button
+document.getElementById('search-btn').addEventListener('click', searchTicket);
+
+// Enter key on input
+document.getElementById('ticket-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        searchTicket();
+    }
+});
+
+// Star rating
+document.querySelectorAll('.star').forEach(star => {
+    star.addEventListener('click', function() {
+        selectedRating = parseInt(this.dataset.rating);
+        updateStarDisplay();
+        document.getElementById('submit-rating-btn').disabled = false;
+    });
+    
+    star.addEventListener('mouseenter', function() {
+        const rating = parseInt(this.dataset.rating);
+        document.querySelectorAll('.star').forEach((s, index) => {
+            s.classList.toggle('filled', index < rating);
+        });
+    });
+});
+
+// Reset stars on mouse leave
+document.getElementById('star-rating').addEventListener('mouseleave', updateStarDisplay);
+
+// Submit rating
+document.getElementById('submit-rating-btn').addEventListener('click', submitRating);
+
+function updateStarDisplay() {
+    document.querySelectorAll('.star').forEach((star, index) => {
+        star.classList.toggle('filled', index < selectedRating);
+    });
+}
+
+async function searchTicket() {
+    const ticketNumber = document.getElementById('ticket-input').value.trim();
+    
+    if (!ticketNumber) {
+        alert('Please enter a ticket number');
+        return;
+    }
+    
+    // Hide previous results
+    document.getElementById('ticket-details').style.display = 'none';
+    document.getElementById('not-found').style.display = 'none';
+    
+    try {
+        const response = await fetch(`/api/user/track-ticket/?ticket_number=${encodeURIComponent(ticketNumber)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentTicketNumber = ticketNumber;
+            displayTicket(data.ticket);
+        } else {
+            document.getElementById('not-found').style.display = 'block';
+        }
+    } catch (error) {
+        alert('Network error. Please try again.');
+        console.error('Search error:', error);
+    }
+}
+
+function displayTicket(ticket) {
+    // Basic info
+    document.getElementById('ticket-number-display').textContent = ticket.ticket_number;
+    document.getElementById('severity-display').textContent = ticket.severity;
+    document.getElementById('category-display').textContent = ticket.category;
+    document.getElementById('department-display').textContent = ticket.department;
+    document.getElementById('created-display').textContent = new Date(ticket.created_at).toLocaleString();
+    
+    // Image
+    if (ticket.image_url) {
+        document.getElementById('ticket-image').src = ticket.image_url;
+        document.getElementById('ticket-image-container').style.display = 'block';
+    } else {
+        document.getElementById('ticket-image-container').style.display = 'none';
+    }
+    
+    // Status badge
+    const statusBadge = document.getElementById('status-badge');
+    const statusMap = {
+        'SUBMITTED': { class: 'bg-secondary', text: 'Submitted' },
+        'ASSIGNED': { class: 'bg-info', text: 'Assigned' },
+        'IN_PROGRESS': { class: 'bg-warning', text: 'In Progress' },
+        'RESOLVED': { class: 'bg-success', text: 'Resolved' }
+    };
+    const statusInfo = statusMap[ticket.status] || statusMap['SUBMITTED'];
+    statusBadge.className = `badge status-badge ${statusInfo.class}`;
+    statusBadge.textContent = statusInfo.text;
+    
+    // Timeline
+    updateTimeline(ticket.status);
+    
+    // Hide all info sections
+    document.getElementById('contractor-info').style.display = 'none';
+    document.getElementById('ward-info').style.display = 'none';
+    document.getElementById('rating-section').style.display = 'none';
+    document.getElementById('rating-display').style.display = 'none';
+    
+    // Show status-specific info
+    if (ticket.status === 'ASSIGNED' && ticket.contractor_info) {
+        document.getElementById('contractor-name').textContent = ticket.contractor_info.contractor_name;
+        const contractorPhone = ticket.contractor_info.contractor_phone;
+        document.getElementById('contractor-phone').textContent = contractorPhone;
+        document.getElementById('contractor-phone').href = `tel:${contractorPhone}`;
+        document.getElementById('contractor-info').style.display = 'block';
+    }
+    
+    if (ticket.status === 'IN_PROGRESS' && ticket.ward_info) {
+        document.getElementById('ward-name').textContent = ticket.ward_info.ward_name;
+        document.getElementById('ward-admin-name').textContent = ticket.ward_info.ward_admin_name;
+        const wardPhone = ticket.ward_info.ward_admin_no;
+        document.getElementById('ward-admin-phone').textContent = wardPhone;
+        document.getElementById('ward-admin-phone').href = `tel:${wardPhone}`;
+        document.getElementById('ward-info').style.display = 'block';
+    }
+    
+    if (ticket.status === 'RESOLVED') {
+        if (ticket.can_rate) {
+            selectedRating = 0;
+            updateStarDisplay();
+            document.getElementById('submit-rating-btn').disabled = true;
+            document.getElementById('rating-section').style.display = 'block';
+        } else if (ticket.user_rating) {
+            const starsHtml = '★'.repeat(ticket.user_rating) + '☆'.repeat(5 - ticket.user_rating);
+            document.getElementById('user-rating-stars').textContent = starsHtml;
+            document.getElementById('rating-display').style.display = 'block';
+        }
+    }
+    
+    // Show ticket card
+    document.getElementById('ticket-details').style.display = 'block';
+}
+
+function updateTimeline(status) {
+    const statuses = ['SUBMITTED', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED'];
+    const currentIndex = statuses.indexOf(status);
+    
+    statuses.forEach((s, index) => {
+        const element = document.getElementById(`timeline-${s.toLowerCase().replace('_', '-')}`);
+        element.classList.toggle('active', index <= currentIndex);
+    });
+}
+
+async function submitRating() {
+    if (selectedRating === 0) {
+        alert('Please select a rating');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/user/rate-ticket/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                ticket_number: currentTicketNumber,
+                rating: selectedRating
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ ' + data.message);
+            // Refresh ticket to show rating
+            searchTicket();
+        } else {
+            alert('❌ ' + (data.error || 'Failed to submit rating'));
+        }
+    } catch (error) {
+        alert('Network error. Please try again.');
+        console.error('Rating error:', error);
+    }
+}
+</script>
+{% endblock %}
