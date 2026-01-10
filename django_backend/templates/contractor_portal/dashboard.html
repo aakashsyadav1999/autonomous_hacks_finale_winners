@@ -1,0 +1,214 @@
+{% extends 'contractor_portal/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">My Tickets</h1>
+    <p class="page-subtitle">Manage and complete your assigned civic complaint tickets</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="card-custom p-3">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-list-task" style="font-size: 1.5rem; color: #10B981;"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div style="font-size: 1.75rem; font-weight: 700; color: #1F2937;">{{ total_tickets }}</div>
+                    <div style="font-size: 0.875rem; color: #6B7280;">Total Tickets</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6">
+        <div class="card-custom p-3">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div style="width: 48px; height: 48px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-person-check" style="font-size: 1.5rem; color: #3B82F6;"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div style="font-size: 1.75rem; font-weight: 700; color: #1F2937;">{{ assigned_count }}</div>
+                    <div style="font-size: 0.875rem; color: #6B7280;">Assigned</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6">
+        <div class="card-custom p-3">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div style="width: 48px; height: 48px; background: rgba(129, 140, 248, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-gear" style="font-size: 1.5rem; color: #818CF8;"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div style="font-size: 1.75rem; font-weight: 700; color: #1F2937;">{{ in_progress_count }}</div>
+                    <div style="font-size: 0.875rem; color: #6B7280;">In Progress</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6">
+        <div class="card-custom p-3">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-check-circle" style="font-size: 1.5rem; color: #10B981;"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div style="font-size: 1.75rem; font-weight: 700; color: #1F2937;">{{ resolved_count }}</div>
+                    <div style="font-size: 0.875rem; color: #6B7280;">Resolved</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card-custom p-4 mb-4">
+    <form method="GET" action="{% url 'contractor_portal:dashboard' %}">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Status</label>
+                <select name="status" class="form-select">
+                    <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All Status</option>
+                    <option value="assigned" {% if filters.status == 'assigned' %}selected{% endif %}>Assigned</option>
+                    <option value="in_progress" {% if filters.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="resolved" {% if filters.status == 'resolved' %}selected{% endif %}>Resolved</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Severity</label>
+                <select name="severity" class="form-select">
+                    <option value="">All Severities</option>
+                    {% for severity in severities %}
+                    <option value="{{ severity }}" {% if filters.severity == severity %}selected{% endif %}>
+                        {{ severity }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Date From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Date To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}">
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary-custom w-100">
+                    <i class="bi bi-funnel me-2"></i>Filter
+                </button>
+            </div>
+        </div>
+        
+        <div class="row g-3 mt-2">
+            <div class="col-md-10">
+                <input type="text" name="search" class="form-control" placeholder="Search by ticket number, category, or location..." value="{{ filters.search }}">
+            </div>
+            <div class="col-md-2">
+                <a href="{% url 'contractor_portal:dashboard' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x-circle me-2"></i>Clear
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Tickets List -->
+<div class="card-custom p-4">
+    <h5 class="mb-4 fw-bold">Assigned Tickets</h5>
+    
+    {% if tickets %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Ticket #</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>AI Verified</th>
+                    <th>Created</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                <tr>
+                    <td>
+                        <span class="fw-bold" style="color: #10B981;">{{ ticket.ticket_number }}</span>
+                    </td>
+                    <td>{{ ticket.category }}</td>
+                    <td>
+                        <small class="text-muted">
+                            <i class="bi bi-geo-alt"></i>
+                            {{ ticket.civic_complaint.area }}
+                        </small>
+                    </td>
+                    <td>
+                        {% if ticket.severity == 'High' or ticket.severity == 'Critical' %}
+                        <span class="badge bg-danger">{{ ticket.severity }}</span>
+                        {% elif ticket.severity == 'Medium' %}
+                        <span class="badge bg-warning">{{ ticket.severity }}</span>
+                        {% else %}
+                        <span class="badge bg-info">{{ ticket.severity }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ticket.status == 'ASSIGNED' %}
+                        <span class="badge bg-info">Assigned</span>
+                        {% elif ticket.status == 'IN_PROGRESS' %}
+                        <span class="badge bg-primary">In Progress</span>
+                        {% elif ticket.status == 'RESOLVED' %}
+                        <span class="badge bg-success">Resolved</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ ticket.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ticket.ai_verified %}
+                        <i class="bi bi-check-circle-fill text-success"></i> Yes
+                        {% else %}
+                        <i class="bi bi-x-circle text-muted"></i> No
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ ticket.created_at|date:"M d, Y" }}</small>
+                    </td>
+                    <td>
+                        <a href="{% url 'contractor_portal:ticket_detail' ticket.id %}" class="btn btn-sm btn-primary-custom">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-inbox" style="font-size: 4rem; color: #E5E7EB;"></i>
+        <p class="text-muted mt-3">No tickets found matching your filters</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

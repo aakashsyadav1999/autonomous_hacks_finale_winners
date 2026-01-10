@@ -1,0 +1,826 @@
+{% extends "admin_portal/base.html" %}
+{% load static %}
+
+{% block title %}Manage Contractors - Admin Portal{% endblock %}
+
+{% block page_title %}Manage Contractors{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_portal:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Contractors</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-panel {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 1.25rem;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stats-card p {
+        opacity: 0.9;
+        margin-bottom: 0;
+        font-size: 0.9rem;
+    }
+    
+    .table-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+    
+    .data-table {
+        margin-bottom: 0;
+    }
+    
+    .data-table thead {
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .data-table thead th {
+        padding: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+        border-bottom: none;
+        white-space: nowrap;
+    }
+    
+    .data-table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .data-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+    
+    .data-table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+    
+    .ward-badge {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        background-color: #EEF2FF;
+        color: #4F46E5;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        margin-right: 0.3rem;
+        margin-bottom: 0.3rem;
+        white-space: nowrap;
+    }
+    
+    .status-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-active {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-inactive {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .action-btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 6px;
+        margin-right: 0.3rem;
+    }
+    
+    .bulk-toolbar {
+        background: #f8fafc;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: none;
+    }
+    
+    .bulk-toolbar.active {
+        display: flex;
+    }
+    
+    .pagination-container {
+        padding: 1.25rem 1.5rem;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .filter-toggle-btn {
+        transition: all 0.3s ease;
+    }
+    
+    .filter-toggle-btn.collapsed::after {
+        content: ' ▼';
+    }
+    
+    .filter-toggle-btn:not(.collapsed)::after {
+        content: ' ▲';
+    }
+    
+    .stat-number {
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+    
+    .stat-number .bi {
+        margin-right: 0.25rem;
+    }
+    
+    .search-box {
+        position: relative;
+    }
+    
+    .search-box .bi-search {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+    
+    .search-box input {
+        padding-left: 2.75rem;
+    }
+    
+    /* Modal Styles */
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+    }
+    
+    .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <h3>{{ total_contractors }}</h3>
+            <p><i class="bi bi-people-fill me-1"></i>Total Contractors</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <h3>{{ active_contractors }}</h3>
+            <p><i class="bi bi-check-circle-fill me-1"></i>Active Contractors</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <h3>{{ inactive_contractors }}</h3>
+            <p><i class="bi bi-x-circle-fill me-1"></i>Inactive Contractors</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <h3>{{ wards|length }}</h3>
+            <p><i class="bi bi-geo-alt-fill me-1"></i>Total Wards</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-panel">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-link p-0 filter-toggle-btn" data-bs-toggle="collapse" data-bs-target="#filterSection">
+            <i class="bi bi-funnel-fill me-2"></i>Filters
+        </button>
+        <div>
+            <a href="{% url 'admin_portal:export_contractors' %}?{{ request.GET.urlencode }}" class="btn btn-outline-success btn-sm me-2">
+                <i class="bi bi-download me-1"></i>Export CSV
+            </a>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createContractorModal">
+                <i class="bi bi-plus-circle me-1"></i>Add Contractor
+            </button>
+        </div>
+    </div>
+    
+    <div class="collapse show" id="filterSection">
+        <form method="get" action="{% url 'admin_portal:manage_contractors' %}" class="row g-3">
+            <!-- Search -->
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <div class="search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="search" class="form-control" placeholder="Name, email, phone, username..." value="{{ filters.search }}">
+                </div>
+            </div>
+            
+            <!-- Department Filter -->
+            <div class="col-md-3">
+                <label class="form-label">Department</label>
+                <select name="department" class="form-select">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept }}" {% if filters.department == dept %}selected{% endif %}>{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Ward Filter -->
+            <div class="col-md-3">
+                <label class="form-label">Ward</label>
+                <select name="ward" class="form-select">
+                    <option value="">All Wards</option>
+                    {% for ward in wards %}
+                    <option value="{{ ward.id }}" {% if filters.ward == ward.id|stringformat:"s" %}selected{% endif %}>Ward {{ ward.ward_no }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Status Filter -->
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            
+            <!-- Date Range -->
+            <div class="col-md-3">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}">
+            </div>
+            
+            <!-- Sort By -->
+            <div class="col-md-2">
+                <label class="form-label">Sort By</label>
+                <select name="sort" class="form-select">
+                    <option value="contractor_name" {% if filters.sort == 'contractor_name' %}selected{% endif %}>Name</option>
+                    <option value="department" {% if filters.sort == 'department' %}selected{% endif %}>Department</option>
+                    <option value="created_at" {% if filters.sort == 'created_at' %}selected{% endif %}>Date Created</option>
+                </select>
+            </div>
+            
+            <!-- Order -->
+            <div class="col-md-2">
+                <label class="form-label">Order</label>
+                <select name="order" class="form-select">
+                    <option value="asc" {% if filters.order == 'asc' %}selected{% endif %}>Ascending</option>
+                    <option value="desc" {% if filters.order == 'desc' %}selected{% endif %}>Descending</option>
+                </select>
+            </div>
+            
+            <!-- Actions -->
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-1"></i>Apply
+                    </button>
+                </div>
+            </div>
+            
+            <div class="col-12">
+                <a href="{% url 'admin_portal:manage_contractors' %}" class="btn btn-link btn-sm">
+                    <i class="bi bi-x-circle me-1"></i>Clear Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table Container -->
+<div class="table-container">
+    <!-- Bulk Actions Toolbar -->
+    <div class="bulk-toolbar" id="bulkToolbar">
+        <div class="flex-grow-1 d-flex align-items-center">
+            <span class="me-3"><strong><span id="selectedCount">0</span> selected</strong></span>
+            <button class="btn btn-sm btn-danger me-2" onclick="bulkDelete()">
+                <i class="bi bi-trash me-1"></i>Delete Selected
+            </button>
+            <button class="btn btn-sm btn-success me-2" onclick="bulkToggleStatus('activate')">
+                <i class="bi bi-check-circle me-1"></i>Activate
+            </button>
+            <button class="btn btn-sm btn-warning" onclick="bulkToggleStatus('deactivate')">
+                <i class="bi bi-x-circle me-1"></i>Deactivate
+            </button>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+            <i class="bi bi-x"></i>
+        </button>
+    </div>
+    
+    <!-- Table -->
+    <div class="table-responsive">
+        <table class="table data-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">
+                        <input type="checkbox" class="form-check-input" id="selectAll">
+                    </th>
+                    <th>Contractor</th>
+                    <th>Contact</th>
+                    <th>Department</th>
+                    <th>Wards</th>
+                    <th>Statistics</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in page_obj %}
+                {% with contractor=item.contractor %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ contractor.id }}">
+                    </td>
+                    <td>
+                        <div>
+                            <strong>{{ contractor.contractor_name }}</strong><br>
+                            <small class="text-muted">@{{ contractor.user.username }}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <small class="d-block"><i class="bi bi-envelope me-1"></i>{{ contractor.contractor_email }}</small>
+                            <small class="d-block"><i class="bi bi-telephone me-1"></i>{{ contractor.contractor_phone }}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ contractor.department }}</span>
+                    </td>
+                    <td>
+                        {% for ward in contractor.wards.all %}
+                        <span class="ward-badge">{{ ward.ward_no }}</span>
+                        {% empty %}
+                        <span class="text-muted">-</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <div class="stat-number">
+                            <i class="bi bi-list-task"></i>{{ item.total_assigned }} assigned<br>
+                            <i class="bi bi-check-circle"></i>{{ item.total_completed }} completed<br>
+                            <i class="bi bi-percent"></i>{{ item.completion_rate }}% rate
+                        </div>
+                    </td>
+                    <td>
+                        {% if contractor.user.is_active %}
+                        <span class="status-badge status-active">Active</span>
+                        {% else %}
+                        <span class="status-badge status-inactive">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Actions
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="editContractor({{ contractor.id }}); return false;">
+                                        <i class="bi bi-pencil me-2"></i>Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="resetPassword({{ contractor.id }}, '{{ contractor.contractor_name }}'); return false;">
+                                        <i class="bi bi-key me-2"></i>Reset Password
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="toggleStatus({{ contractor.id }}, {{ contractor.user.is_active|yesno:'true,false' }}); return false;">
+                                        <i class="bi bi-{% if contractor.user.is_active %}x-circle{% else %}check-circle{% endif %} me-2"></i>
+                                        {% if contractor.user.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" onclick="deleteContractor({{ contractor.id }}, '{{ contractor.contractor_name }}'); return false;">
+                                        <i class="bi bi-trash me-2"></i>Delete
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 3rem; color: #cbd5e1;"></i>
+                        <p class="text-muted mt-3">No contractors found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} contractors
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div>
+                    <label class="me-2">Per page:</label>
+                    <select class="form-select form-select-sm d-inline-block" style="width: auto;" onchange="changePerPage(this.value)">
+                        <option value="12" {% if filters.per_page == '12' %}selected{% endif %}>12</option>
+                        <option value="24" {% if filters.per_page == '24' %}selected{% endif %}>24</option>
+                        <option value="50" {% if filters.per_page == '50' %}selected{% endif %}>50</option>
+                        <option value="all" {% if filters.per_page == 'all' %}selected{% endif %}>All</option>
+                    </select>
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_obj.number }}</span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Last</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Contractor Modal -->
+<div class="modal fade" id="createContractorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Add New Contractor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createContractorForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Contractor Name *</label>
+                            <input type="text" name="contractor_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Username *</label>
+                            <input type="text" name="username" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="contractor_email" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone *</label>
+                            <input type="text" name="contractor_phone" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password *</label>
+                            <input type="password" name="password" class="form-control" required minlength="8">
+                            <small class="text-muted">Minimum 8 characters</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Department *</label>
+                            <select name="department" class="form-select" required>
+                                <option value="">Select Department</option>
+                                <option value="Sanitation Department">Sanitation Department</option>
+                                <option value="Roads & Infrastructure">Roads & Infrastructure</option>
+                                <option value="Water Supply Department">Water Supply Department</option>
+                                <option value="Drainage Department">Drainage Department</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Assign Wards</label>
+                            <div class="row">
+                                {% for ward in wards %}
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="wards" value="{{ ward.id }}" class="form-check-input" id="ward{{ ward.id }}">
+                                        <label class="form-check-label" for="ward{{ ward.id }}">
+                                            Ward {{ ward.ward_no }} - {{ ward.ward_name }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>Create Contractor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-key me-2"></i>Reset Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="resetPasswordForm">
+                {% csrf_token %}
+                <input type="hidden" id="resetContractorId" name="contractor_id">
+                <div class="modal-body">
+                    <p>Resetting password for: <strong id="resetContractorName"></strong></p>
+                    <div class="mb-3">
+                        <label class="form-label">New Password *</label>
+                        <input type="password" name="new_password" class="form-control" required minlength="8">
+                        <small class="text-muted">Minimum 8 characters. Share this password securely with the contractor.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>Reset Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Select All Checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+    updateBulkToolbar();
+});
+
+// Individual Checkboxes
+document.querySelectorAll('.row-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateBulkToolbar);
+});
+
+function updateBulkToolbar() {
+    const selected = document.querySelectorAll('.row-checkbox:checked');
+    const toolbar = document.getElementById('bulkToolbar');
+    const count = document.getElementById('selectedCount');
+    
+    count.textContent = selected.length;
+    if (selected.length > 0) {
+        toolbar.classList.add('active');
+    } else {
+        toolbar.classList.remove('active');
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBulkToolbar();
+}
+
+function getSelectedIds() {
+    const selected = [];
+    document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+        selected.push(cb.value);
+    });
+    return selected;
+}
+
+// Change Per Page
+function changePerPage(value) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('per_page', value);
+    url.searchParams.delete('page');  // Reset to first page
+    window.location.href = url.toString();
+}
+
+// Create Contractor
+document.getElementById('createContractorForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch("{% url 'admin_portal:create_contractor' %}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while creating the contractor');
+    });
+});
+
+// Reset Password
+function resetPassword(contractorId, contractorName) {
+    document.getElementById('resetContractorId').value = contractorId;
+    document.getElementById('resetContractorName').textContent = contractorName;
+    new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+document.getElementById('resetPasswordForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const contractorId = document.getElementById('resetContractorId').value;
+    const newPassword = this.new_password.value;
+    
+    fetch(`/admin-portal/contractors/${contractorId}/reset-password/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `new_password=${encodeURIComponent(newPassword)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+            alert('Password reset successfully');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+    });
+});
+
+// Toggle Status
+function toggleStatus(contractorId, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    if (confirm(`Are you sure you want to ${action} this contractor?`)) {
+        fetch(`/admin-portal/contractors/${contractorId}/toggle-status/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    }
+}
+
+// Delete Contractor
+function deleteContractor(contractorId, contractorName) {
+    if (confirm(`Are you sure you want to delete contractor "${contractorName}"?`)) {
+        fetch(`/admin-portal/contractors/${contractorId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    }
+}
+
+// Bulk Delete
+function bulkDelete() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        alert('Please select contractors to delete');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete ${ids.length} contractor(s)?`)) {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        ids.forEach(id => formData.append('contractor_ids[]', id));
+        
+        fetch("{% url 'admin_portal:bulk_delete_contractors' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    }
+}
+
+// Bulk Toggle Status
+function bulkToggleStatus(action) {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        alert('Please select contractors');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to ${action} ${ids.length} contractor(s)?`)) {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('action', action);
+        ids.forEach(id => formData.append('contractor_ids[]', id));
+        
+        fetch("{% url 'admin_portal:bulk_toggle_contractor_status' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    }
+}
+</script>
+{% endblock %}
