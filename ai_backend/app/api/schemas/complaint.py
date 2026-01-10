@@ -109,6 +109,27 @@ class ComplaintAnalysisResponse(BaseModel):
     )
 
 
+class ComplaintAnalysisResponseWithWard(BaseModel):
+    """Response schema for complaint image analysis with ward mapping."""
+    
+    is_valid: bool = Field(
+        ..., 
+        description="Whether the image contains valid civic issues"
+    )
+    data: List[DetectedIssue] = Field(
+        default_factory=list,
+        description="List of detected issues with their categories, departments, and severity"
+    )
+    ward_no: Optional[str] = Field(
+        default=None,
+        description="Ward number based on GPS coordinates"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message if image is invalid or processing failed"
+    )
+
+
 class WorkVerificationRequest(BaseModel):
     """Request schema for work completion verification."""
     

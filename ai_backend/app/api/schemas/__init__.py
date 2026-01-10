@@ -2,6 +2,7 @@
 from app.api.schemas.complaint import (
     ComplaintAnalysisRequest,
     ComplaintAnalysisResponse,
+    ComplaintAnalysisResponseWithWard,
     DetectedIssue,
     SeverityLevel,
     CategoryType,
@@ -14,6 +15,7 @@ from app.api.schemas.complaint import (
 __all__ = [
     "ComplaintAnalysisRequest",
     "ComplaintAnalysisResponse",
+    "ComplaintAnalysisResponseWithWard",
     "DetectedIssue",
     "SeverityLevel",
     "CategoryType",
