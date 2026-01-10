@@ -119,7 +119,7 @@ class TicketAdmin(admin.ModelAdmin):
             'fields': ('user_rating',)
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at')
+            'fields': ('created_at', 'updated_at', 'resolved_at')
         }),
     )
     

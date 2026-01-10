@@ -301,6 +301,14 @@ class Ticket(models.Model):
         auto_now=True,
         help_text="Last status update timestamp"
     )
+
+    # Resolution timestamp (set when status transitions to RESOLVED)
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="When ticket was marked resolved"
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -316,23 +324,41 @@ class Ticket(models.Model):
     
     def save(self, *args, **kwargs):
         """
-        Override save to update contractor ratings when user submits rating.
+        Override save to handle two concerns:
+
+        1) Set `resolved_at` when the ticket status transitions to `RESOLVED`.
+           - For new tickets saved as `RESOLVED`, set the timestamp.
+           - For existing tickets changing to `RESOLVED`, set once (do not overwrite).
+
+        2) Update contractor average ratings when a user rating is newly added.
         """
-        # Check if rating was just added
-        if self.user_rating and self.contractor:
-            is_new_rating = False
-            
-            if self.pk:  # Existing ticket
+        old_instance = None
+        if self.pk:
+            try:
                 old_instance = Ticket.objects.get(pk=self.pk)
+            except Ticket.DoesNotExist:
+                old_instance = None
+
+        # Detect transition to RESOLVED and set resolved_at once
+        status_now_resolved = self.status == 'RESOLVED'
+        status_was_resolved = bool(old_instance and old_instance.status == 'RESOLVED')
+        if status_now_resolved and not status_was_resolved and self.resolved_at is None:
+            self.resolved_at = timezone.now()
+
+        # Determine if this save introduces a new user rating for the contractor
+        is_new_rating = False
+        if self.contractor and self.user_rating is not None:
+            if old_instance is None:
+                # New ticket with an initial rating set
+                is_new_rating = True
+            else:
                 is_new_rating = old_instance.user_rating is None and self.user_rating is not None
-            
-            super().save(*args, **kwargs)
-            
-            # Recalculate contractor average rating
-            if is_new_rating:
-                self.contractor.update_average_rating()
-        else:
-            super().save(*args, **kwargs)
+
+        super().save(*args, **kwargs)
+
+        # Post-save: update contractor average rating if a new rating was added
+        if is_new_rating:
+            self.contractor.update_average_rating()
 
 
 class TicketNote(models.Model):

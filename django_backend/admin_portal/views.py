@@ -1307,11 +1307,14 @@ def manage_wards(request):
         # Sorting
         sort_field = request.GET.get('sort', 'ward_no')
         order = request.GET.get('order', 'asc')
-        
-        if order == 'desc':
-            sort_field = f'-{sort_field}'
-        
-        wards = wards.order_by(sort_field)
+
+        # If sorting by ward_no we will sort numerically later after
+        # we compute contractors/tickets counts to handle ward_no stored
+        # as CharField (e.g. '1', '10', '2'). For other fields use ORM
+        # ordering which is more efficient.
+        if sort_field != 'ward_no':
+            orm_sort_field = f'-{sort_field}' if order == 'desc' else sort_field
+            wards = wards.order_by(orm_sort_field)
         
         # Calculate statistics for each ward
         wards_with_stats = []
@@ -1340,6 +1343,23 @@ def manage_wards(request):
                     'tickets_count': tickets_count,
                 })
         
+        # If sorting requested by ward_no, perform numeric sort here on the
+        # assembled list (wards_with_stats). This avoids lexicographic string
+        # ordering issues when ward_no is a CharField.
+        if sort_field == 'ward_no':
+            import re
+
+            def _ward_no_key(item: dict):
+                raw = str(item['ward'].ward_no)
+                m = re.match(r"^(\d+)", raw)
+                if m:
+                    return int(m.group(1))
+                # Place non-numeric ward_no at the end
+                return float('inf')
+
+            reverse_sort = True if order == 'desc' else False
+            wards_with_stats.sort(key=_ward_no_key, reverse=reverse_sort)
+
         # Pagination
         per_page = request.GET.get('per_page', '12')
         if per_page == 'all':
