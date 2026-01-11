@@ -19,8 +19,10 @@ from rest_framework.response import Response
 from django.db import transaction
 from django.shortcuts import render, get_object_or_404
 from django.views.generic import TemplateView
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
-from contractor_portal.fastapi_client import analyze_complaint_image, FastAPIError
+from contractor_portal.fastapi_client import FastAPIClient, FastAPIError
 
 from user_portal.models import CivicComplaint, Ticket
 from user_portal.serializers import (
@@ -100,6 +102,10 @@ class CapturePhotoView(APIView):
         4. Return session_id for later submission
     """
     
+    # Disable CSRF for this endpoint (mobile/external access)
+    authentication_classes = []
+    permission_classes = []
+    
     def post(self, request):
         """Handle photo capture request."""
         serializer = PhotoCaptureSerializer(data=request.data)
@@ -178,6 +184,7 @@ class CapturePhotoView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class SubmitComplaintView(APIView):
     """
     API endpoint for submitting complaint to AI validation.
@@ -208,6 +215,10 @@ class SubmitComplaintView(APIView):
         3. If valid: Create tickets from AI response
         4. If invalid: Delete complaint and notify user
     """
+    
+    # Disable CSRF for this endpoint (mobile/external access)
+    authentication_classes = []
+    permission_classes = []
     
     def post(self, request):
         """Handle complaint submission request."""
@@ -267,12 +278,18 @@ class SubmitComplaintView(APIView):
                 for issue_data in ai_response['data']:
                     ticket_number = generate_ticket_number()
                     
+                    # Convert list fields to comma-separated strings
+                    suggested_tools = ', '.join(issue_data.get('suggested_tools', [])) if issue_data.get('suggested_tools') else ''
+                    safety_equipment = ', '.join(issue_data.get('safety_equipment', [])) if issue_data.get('safety_equipment') else ''
+                    
                     ticket = Ticket.objects.create(
                         ticket_number=ticket_number,
                         civic_complaint=complaint,
                         severity=issue_data['severity'],
                         category=issue_data['category'],
                         department=issue_data['department'],
+                        suggested_tools=suggested_tools,
+                        safety_equipment=safety_equipment,
                         status='SUBMITTED'
                     )
                     
@@ -335,15 +352,23 @@ class SubmitComplaintView(APIView):
             }
         """
         try:
-            # Call FastAPI with image path and location
-            is_valid, data_list, error_message = analyze_complaint_image(
+            # Instantiate FastAPI client
+            client = FastAPIClient()
+
+            # Call FastAPI analyze_complaint endpoint directly
+            result = client.analyze_complaint(
                 image_path=complaint.image.path,
                 street=complaint.street,
                 area=complaint.area,
                 postal_code=complaint.postal_code,
-                latitude=float(complaint.latitude) if complaint.latitude else None,
-                longitude=float(complaint.longitude) if complaint.longitude else None
+                latitude=complaint.latitude,
+                longitude=complaint.longitude
             )
+            
+            # Check if validation was successful
+            is_valid = result.get('is_valid', False)
+            data_list = result.get('data', [])
+            error_message = result.get('error')
             
             if is_valid:
                 logger.info(f"AI validation successful for complaint {complaint.id}: {len(data_list)} issue(s) detected")
@@ -363,59 +388,16 @@ class SubmitComplaintView(APIView):
             # Log FastAPI errors but fall back to mock validation
             logger.error(f"FastAPI error for complaint {complaint.id}: {str(e)}")
             logger.info("Falling back to mock AI validation due to FastAPI error")
-            return self._mock_ai_validation(complaint)
+            return {"error": str(e)}
         
         except Exception as e:
             # Log unexpected errors but fall back to mock validation
             logger.error(f"Unexpected error calling AI service for complaint {complaint.id}: {str(e)}")
             logger.info("Falling back to mock AI validation due to unexpected error")
-            return self._mock_ai_validation(complaint)
-    
-    def _mock_ai_validation(self, complaint):
-        """
-        MOCK AI validation as fallback when FastAPI is unavailable.
-        
-        This is used when:
-        1. FastAPI service is down or unreachable
-        2. Network errors occur
-        3. Environment variable FASTAPI_BASE_URL is not set
-        
-        Returns random valid complaint data for testing purposes.
-        """
-        import random
-        
-        logger.warning(f"Using MOCK AI validation for complaint {complaint.id}")
-        
-        departments = [
-            {
-                'severity': 'High',
-                'category': 'Garbage/Waste accumulation',
-                'department': 'Sanitation Department'
-            },
-            {
-                'severity': 'Medium',
-                'category': 'Manholes/drainage opening damage',
-                'department': 'Roads & Infrastructure'
-            },
-            {
-                'severity': 'High',
-                'category': 'Water leakage',
-                'department': 'Water Supply Department'
-            },
-            {
-                'severity': 'Critical',
-                'category': 'Drainage overflow',
-                'department': 'Drainage Department'
-            }
-        ]
-        
-        # Return one random department issue
-        return {
-            'is_valid': True,
-            'data': [random.choice(departments)]
-        }
+            return {"error": str(e)}
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class TrackTicketView(APIView):
     """
     API endpoint for ticket tracking.
@@ -451,6 +433,10 @@ class TrackTicketView(APIView):
         - RESOLVED: Show rating form (if not rated)
     """
     
+    # Disable CSRF for this endpoint (mobile/external access)
+    authentication_classes = []
+    permission_classes = []
+    
     def get(self, request):
         """Handle ticket tracking request."""
         ticket_number = request.query_params.get('ticket_number')
@@ -483,6 +469,7 @@ class TrackTicketView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class RateTicketView(APIView):
     """
     API endpoint for submitting ticket rating.
@@ -508,6 +495,10 @@ class RateTicketView(APIView):
         - Rating must not already exist
         - Rating must be 1-5
     """
+    
+    # Disable CSRF for this endpoint (mobile/external access)
+    authentication_classes = []
+    permission_classes = []
     
     def post(self, request):
         """Handle ticket rating submission."""

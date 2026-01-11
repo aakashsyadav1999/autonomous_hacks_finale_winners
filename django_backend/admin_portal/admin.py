@@ -106,8 +106,12 @@ class ContractorAdmin(admin.ModelAdmin):
     
     def ratings_display(self, obj):
         """Display rating with color coding."""
-        rating = float(obj.ratings)
-        
+        # Ensure we have a numeric rating; fall back to 0.0
+        try:
+            rating = float(obj.ratings)
+        except Exception:
+            rating = 0.0
+
         # Color code based on rating
         if rating >= 4.0:
             color = 'green'
@@ -117,11 +121,16 @@ class ContractorAdmin(admin.ModelAdmin):
             color = 'red'
         else:
             color = 'gray'
-        
+
+        # Format the rating as a simple string before passing to format_html.
+        # This avoids passing a SafeString (or other non-numeric type) into
+        # Python's str.format numeric format codes which can raise errors.
+        rating_text = f"{rating:.2f} ⭐"
+
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:.2f} ⭐</span>',
+            '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            rating
+            rating_text,
         )
     ratings_display.short_description = 'Rating'
     

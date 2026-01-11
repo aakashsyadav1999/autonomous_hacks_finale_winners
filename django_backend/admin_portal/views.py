@@ -144,13 +144,19 @@ def dashboard(request):
         user_rating__isnull=False
     ).aggregate(Avg('user_rating'))['user_rating__avg']
     
+    # Convert department_stats QuerySet to list for JSON serialization
+    import json
+    department_stats_list = list(department_stats)
+    department_stats_json = json.dumps(department_stats_list)
+    
     context = {
         'total_tickets': total_tickets,
         'submitted_count': submitted_count,
         'assigned_count': assigned_count,
         'in_progress_count': in_progress_count,
         'resolved_count': resolved_count,
-        'department_stats': department_stats,
+        'department_stats': department_stats_list,
+        'department_stats_json': department_stats_json,
         'recent_tickets': recent_tickets,
         'top_contractors': top_contractors,
         'tickets_today': tickets_today,
@@ -1307,11 +1313,14 @@ def manage_wards(request):
         # Sorting
         sort_field = request.GET.get('sort', 'ward_no')
         order = request.GET.get('order', 'asc')
-        
-        if order == 'desc':
-            sort_field = f'-{sort_field}'
-        
-        wards = wards.order_by(sort_field)
+
+        # If sorting by ward_no we will sort numerically later after
+        # we compute contractors/tickets counts to handle ward_no stored
+        # as CharField (e.g. '1', '10', '2'). For other fields use ORM
+        # ordering which is more efficient.
+        if sort_field != 'ward_no':
+            orm_sort_field = f'-{sort_field}' if order == 'desc' else sort_field
+            wards = wards.order_by(orm_sort_field)
         
         # Calculate statistics for each ward
         wards_with_stats = []
@@ -1340,6 +1349,23 @@ def manage_wards(request):
                     'tickets_count': tickets_count,
                 })
         
+        # If sorting requested by ward_no, perform numeric sort here on the
+        # assembled list (wards_with_stats). This avoids lexicographic string
+        # ordering issues when ward_no is a CharField.
+        if sort_field == 'ward_no':
+            import re
+
+            def _ward_no_key(item: dict):
+                raw = str(item['ward'].ward_no)
+                m = re.match(r"^(\d+)", raw)
+                if m:
+                    return int(m.group(1))
+                # Place non-numeric ward_no at the end
+                return float('inf')
+
+            reverse_sort = True if order == 'desc' else False
+            wards_with_stats.sort(key=_ward_no_key, reverse=reverse_sort)
+
         # Pagination
         per_page = request.GET.get('per_page', '12')
         if per_page == 'all':
@@ -1793,4 +1819,235 @@ def delete_notification(request, notification_id):
         return JsonResponse({
             'success': False,
             'error': str(e)
+        }, status=500)
+
+
+@staff_required
+@require_POST
+def predict_analytics(request):
+    """
+    Generate predictive risk analytics PDF report for resolved tickets in date range.
+    
+    Process:
+    1. Parse date range from request
+    2. Fetch resolved tickets within date range
+    3. Validate tickets exist
+    4. Send to FastAPI analytics endpoint
+    5. Convert HTML report to PDF and return as download
+    
+    Request JSON:
+        {
+            "date_from": "YYYY-MM-DD",
+            "date_to": "YYYY-MM-DD"
+        }
+    
+    Response: PDF file download
+    """
+    try:
+        # Parse request data
+        import json
+        from io import BytesIO
+        from django.http import HttpResponse
+        
+        data = json.loads(request.body)
+        date_from_str = data.get('date_from')
+        date_to_str = data.get('date_to')
+        
+        # Validate dates
+        if not date_from_str or not date_to_str:
+            return JsonResponse({
+                'success': False,
+                'error': 'Please select both start and end dates'
+            }, status=400)
+        
+        # Parse dates
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d')
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid date format. Use YYYY-MM-DD'
+            }, status=400)
+        
+        # Validate date range
+        if date_from > date_to:
+            return JsonResponse({
+                'success': False,
+                'error': 'Start date must be before end date'
+            }, status=400)
+        
+        # Fetch resolved tickets in date range
+        tickets = Ticket.objects.filter(
+            status='RESOLVED',
+            resolved_at__gte=date_from,
+            resolved_at__lte=date_to
+        ).select_related('ward')
+        
+        # Check if any tickets found
+        if not tickets.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'No resolved tickets found for the selected date range'
+            }, status=404)
+        
+        # Prepare tickets data for API
+        tickets_data = []
+        for ticket in tickets:
+            tickets_data.append({
+                'ticket_number': ticket.ticket_number,
+                'category': ticket.category,
+                'severity': ticket.severity,
+                'department': ticket.department,
+                'ward_no': ticket.ward.ward_no if ticket.ward else '',
+                'ward_name': ticket.ward.ward_name if ticket.ward else '',
+                'created_at': ticket.created_at.isoformat() if ticket.created_at else '',
+                'resolved_at': ticket.resolved_at.isoformat() if ticket.resolved_at else '',
+            })
+        
+        # Call FastAPI analytics endpoint
+        from contractor_portal.fastapi_client import FastAPIClient, FastAPIError
+        
+        try:
+            client = FastAPIClient()
+            result = client.predict_analytics(tickets_data)
+            
+            # Check for API errors
+            if result.get('error'):
+                return JsonResponse({
+                    'success': False,
+                    'error': f"Analytics API error: {result['error']}"
+                }, status=500)
+            
+            # Get HTML report
+            report_html = result.get('report_html', '')
+            
+            if not report_html:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'No report generated'
+                }, status=500)
+            
+            # Sanitize HTML for PDF generation
+            # Remove problematic CSS and wrap in proper HTML structure
+            sanitized_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Analytics Report</title>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        margin: 20px;
+                        padding: 0;
+                        font-size: 12px;
+                    }}
+                    table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 10px 0;
+                    }}
+                    th, td {{
+                        border: 1px solid #ddd;
+                        padding: 8px;
+                        text-align: left;
+                    }}
+                    th {{
+                        background-color: #f2f2f2;
+                        font-weight: bold;
+                    }}
+                    h1, h2, h3, h4 {{
+                        color: #333;
+                        margin: 10px 0;
+                    }}
+                    .header {{
+                        text-align: center;
+                        margin-bottom: 20px;
+                        padding: 10px;
+                        background-color: #f8f9fa;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Predictive Risk Analytics Report</h1>
+                    <p>Date Range: {date_from_str} to {date_to_str}</p>
+                    <p>Tickets Analyzed: {len(tickets_data)}</p>
+                </div>
+                {report_html}
+            </body>
+            </html>
+            """
+            
+            # Convert HTML to PDF using WeasyPrint
+            try:
+                from weasyprint import HTML, CSS
+                from weasyprint.text.fonts import FontConfiguration
+                import logging
+                
+                # Suppress WeasyPrint warnings
+                weasyprint_logger = logging.getLogger('weasyprint')
+                weasyprint_logger.setLevel(logging.ERROR)
+                
+                # Create PDF from sanitized HTML
+                font_config = FontConfiguration()
+                html_obj = HTML(string=sanitized_html)
+                
+                # Generate PDF in memory
+                pdf_buffer = BytesIO()
+                html_obj.write_pdf(pdf_buffer, font_config=font_config)
+                pdf_buffer.seek(0)
+                
+                # Prepare response with PDF
+                response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+                filename = f'analytics_report_{date_from_str}_to_{date_to_str}.pdf'
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                response['X-Tickets-Count'] = len(tickets_data)
+                
+                return response
+                
+            except Exception as e:
+                # WeasyPrint failed, try xhtml2pdf as fallback
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"WeasyPrint PDF generation failed: {str(e)}")
+                
+                try:
+                    from xhtml2pdf import pisa
+                    
+                    pdf_buffer = BytesIO()
+                    pisa_status = pisa.CreatePDF(sanitized_html, dest=pdf_buffer)
+                    
+                    if pisa_status.err:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'PDF generation failed: {str(e)}'
+                        }, status=500)
+                    
+                    pdf_buffer.seek(0)
+                    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+                    filename = f'analytics_report_{date_from_str}_to_{date_to_str}.pdf'
+                    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                    response['X-Tickets-Count'] = len(tickets_data)
+                    
+                    return response
+                    
+                except Exception as fallback_error:
+                    # Both methods failed, return detailed error
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'PDF generation failed. Primary error: {str(e)}. Fallback error: {str(fallback_error)}'
+                    }, status=500)
+        
+        except FastAPIError as e:
+            return JsonResponse({
+                'success': False,
+                'error': f"Failed to connect to analytics service: {str(e)}"
+            }, status=500)
+    
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f"Server error: {str(e)}"
         }, status=500)

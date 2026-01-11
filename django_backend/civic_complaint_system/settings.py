@@ -37,6 +37,19 @@ ALLOWED_HOSTS = (
     else os.getenv("ALLOWED_HOSTS", "").split(",")
 )
 
+# CSRF Trusted Origins - Add ngrok and other trusted origins here
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://*.ngrok-free.app",
+    "https://*.ngrok-free.dev",
+    "https://*.ngrok.io",
+]
+
+# Allow specific ngrok domain from environment variable
+if os.getenv("NGROK_URL"):
+    CSRF_TRUSTED_ORIGINS.append(os.getenv("NGROK_URL"))
+
 
 # Application definition
 

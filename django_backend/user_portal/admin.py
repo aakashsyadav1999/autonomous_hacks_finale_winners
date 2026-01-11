@@ -110,7 +110,7 @@ class TicketAdmin(admin.ModelAdmin):
             'fields': ('ticket_number', 'civic_complaint', 'status')
         }),
         ('Issue Details', {
-            'fields': ('category', 'severity', 'department')
+            'fields': ('category', 'severity', 'department', 'suggested_tools', 'safety_equipment')
         }),
         ('Assignment', {
             'fields': ('contractor', 'ward')
@@ -119,7 +119,7 @@ class TicketAdmin(admin.ModelAdmin):
             'fields': ('user_rating',)
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at')
+            'fields': ('created_at', 'updated_at', 'resolved_at')
         }),
     )
     

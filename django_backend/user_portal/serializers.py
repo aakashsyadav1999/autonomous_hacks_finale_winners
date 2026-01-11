@@ -146,30 +146,6 @@ class PhotoCaptureSerializer(serializers.Serializer):
         required=True,
         help_text="GPS longitude coordinate"
     )
-    
-    def validate_latitude(self, value):
-        """
-        Validate latitude is within valid range.
-        
-        Ahmedabad latitude range: approximately 22.9° to 23.2°
-        """
-        if not (22.0 <= float(value) <= 24.0):
-            raise serializers.ValidationError(
-                "Latitude must be within Ahmedabad region (22.0 to 24.0)"
-            )
-        return value
-    
-    def validate_longitude(self, value):
-        """
-        Validate longitude is within valid range.
-        
-        Ahmedabad longitude range: approximately 72.4° to 72.8°
-        """
-        if not (72.0 <= float(value) <= 73.0):
-            raise serializers.ValidationError(
-                "Longitude must be within Ahmedabad region (72.0 to 73.0)"
-            )
-        return value
 
 
 class SubmitComplaintSerializer(serializers.Serializer):

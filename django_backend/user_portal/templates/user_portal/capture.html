@@ -106,6 +106,19 @@
                 <p class="text-muted">
                     <i class="bi bi-shield-check"></i> Your location is used only to identify the civic issue area
                 </p>
+                
+                <hr class="my-3">
+                
+                <p class="text-muted small mb-2">Or upload from gallery (for testing)</p>
+                <div class="file-input-wrapper" style="max-width: 300px; margin: 0 auto;">
+                    <input type="file" 
+                           id="upload-image-input" 
+                           accept="image/*"
+                           style="display: none;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="upload-image-btn">
+                        <i class="bi bi-upload me-2"></i>📁 Upload Photo
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -205,6 +218,8 @@ const reportAnotherBtn = document.getElementById('report-another-btn');
 const previewImg = document.getElementById('preview-img');
 const loadingOverlay = document.getElementById('loading-overlay');
 const loadingText = document.getElementById('loading-text');
+const uploadImageBtn = document.getElementById('upload-image-btn');
+const uploadImageInput = document.getElementById('upload-image-input');
 
 // Initialize camera
 async function initCamera() {
@@ -372,6 +387,82 @@ submitBtn.addEventListener('click', async () => {
 reportAnotherBtn.addEventListener('click', async () => {
     showStep('camera');
     await initCamera();
+});
+
+// Upload image button (for testing)
+uploadImageBtn.addEventListener('click', () => {
+    uploadImageInput.click();
+});
+
+// Handle file upload
+uploadImageInput.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    showLoading('Getting location...');
+    
+    try {
+        // Get location when file is selected
+        await getCurrentLocation();
+        
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            capturedImageData = e.target.result;
+            previewImg.src = capturedImageData;
+            
+            // Send to backend (same as capture)
+            showLoading('Saving photo and fetching address...');
+            
+            try {
+                const response = await fetch('/api/user/capture-photo/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_base64: capturedImageData,
+                        latitude: currentLocation.latitude,
+                        longitude: currentLocation.longitude
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    sessionId = data.session_id;
+                    complaintId = data.complaint_id;
+                    
+                    // Display location
+                    document.getElementById('location-area').textContent = data.location.area;
+                    document.getElementById('location-street').textContent = data.location.street || '-';
+                    document.getElementById('location-postal').textContent = data.location.postal_code || '-';
+                    document.getElementById('location-coords').textContent = 
+                        `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`;
+                    
+                    // Stop camera if running
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    showStep('preview');
+                } else {
+                    showError(data.error || 'Failed to save photo');
+                }
+            } catch (error) {
+                showError('Network error. Please check your connection.');
+                console.error('Upload error:', error);
+            } finally {
+                hideLoading();
+            }
+        };
+        reader.readAsDataURL(file);
+        
+    } catch (error) {
+        showError('Location access required. Please enable location services.');
+        hideLoading();
+        this.value = '';
+    }
 });
 
 // Show/hide steps
