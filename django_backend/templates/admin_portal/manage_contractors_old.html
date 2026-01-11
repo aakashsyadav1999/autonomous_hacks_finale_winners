@@ -1,0 +1,450 @@
+{% extends "admin_portal/base.html" %}
+{% load static %}
+
+{% block title %}Manage Contractors - Admin Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .contractor-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .contractor-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .contractor-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3B82F6, #2563EB);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    .ward-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background-color: #EEF2FF;
+        color: #4F46E5;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, #3B82F6, #2563EB);
+        color: white;
+    }
+    
+    .form-check-input:checked {
+        background-color: #3B82F6;
+        border-color: #3B82F6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-2"><i class="bi bi-people-fill me-2"></i>Manage Contractors</h2>
+                <p class="text-muted">Create and manage contractor accounts</p>
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createContractorModal">
+                <i class="bi bi-plus-circle me-2"></i>Add Contractor
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-people text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="mb-0">{{ total_contractors }}</h3>
+                        <p class="text-muted mb-0">Total Contractors</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contractors List -->
+<div class="row">
+    {% for contractor in contractors %}
+    <div class="col-md-6 col-lg-4">
+        <div class="contractor-card">
+            <div class="d-flex align-items-start mb-3">
+                <div class="contractor-avatar me-3">
+                    {{ contractor.contractor_name|slice:":2"|upper }}
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="mb-1">{{ contractor.contractor_name }}</h5>
+                    <p class="text-muted mb-0"><i class="bi bi-person-badge me-1"></i>{{ contractor.department }}</p>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item edit-contractor" href="#" data-contractor-id="{{ contractor.id }}">
+                            <i class="bi bi-pencil me-2"></i>Edit
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger delete-contractor" href="#" data-contractor-id="{{ contractor.id }}" data-contractor-name="{{ contractor.contractor_name }}">
+                            <i class="bi bi-trash me-2"></i>Delete
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mb-2">
+                <i class="bi bi-envelope text-muted me-2"></i>
+                <small>{{ contractor.contractor_email }}</small>
+            </div>
+            
+            <div class="mb-3">
+                <i class="bi bi-telephone text-muted me-2"></i>
+                <small>{{ contractor.contractor_phone }}</small>
+            </div>
+            
+            <div class="mb-2">
+                <strong class="text-muted" style="font-size: 0.875rem;">Login:</strong>
+                <div class="mt-1">
+                    {% if contractor.user %}
+                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>{{ contractor.user.username }}</span>
+                    {% else %}
+                        <span class="badge bg-warning"><i class="bi bi-exclamation-triangle me-1"></i>No account</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div>
+                <strong class="text-muted" style="font-size: 0.875rem;">Assigned Wards:</strong>
+                <div class="mt-2">
+                    {% for ward in contractor.wards.all %}
+                        <span class="ward-badge">Ward {{ ward.ward_no }}</span>
+                    {% empty %}
+                        <small class="text-muted">No wards assigned</small>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="bi bi-people" style="font-size: 4rem; color: #cbd5e1;"></i>
+            <h4 class="mt-3 text-muted">No contractors yet</h4>
+            <p class="text-muted">Click "Add Contractor" to create your first contractor</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Create Contractor Modal -->
+<div class="modal fade" id="createContractorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Add New Contractor</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createContractorForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="username" required>
+                            <small class="text-muted">Used for login</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="password" required>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Contractor Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="contractor_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="contractor_phone" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="contractor_email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Department <span class="text-danger">*</span></label>
+                        <select class="form-select" name="department" required>
+                            <option value="">Select Department</option>
+                            <option value="Roads">Roads</option>
+                            <option value="Water">Water</option>
+                            <option value="Electricity">Electricity</option>
+                            <option value="Sanitation">Sanitation</option>
+                            <option value="Street Light">Street Light</option>
+                            <option value="Drainage">Drainage</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Assign Wards</label>
+                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                            {% for ward in wards %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="wards" value="{{ ward.id }}" id="ward-{{ ward.id }}">
+                                <label class="form-check-label" for="ward-{{ ward.id }}">
+                                    Ward {{ ward.ward_no }} - {{ ward.ward_name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">Select one or more wards for this contractor</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>Create Contractor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Contractor Modal -->
+<div class="modal fade" id="editContractorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Contractor</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editContractorForm">
+                {% csrf_token %}
+                <input type="hidden" id="edit-contractor-id" name="contractor_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Contractor Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit-contractor-name" name="contractor_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" id="edit-contractor-phone" name="contractor_phone" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="edit-contractor-email" name="contractor_email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Department <span class="text-danger">*</span></label>
+                        <select class="form-select" id="edit-department" name="department" required>
+                            <option value="Roads">Roads</option>
+                            <option value="Water">Water</option>
+                            <option value="Electricity">Electricity</option>
+                            <option value="Sanitation">Sanitation</option>
+                            <option value="Street Light">Street Light</option>
+                            <option value="Drainage">Drainage</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Assign Wards</label>
+                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                            {% for ward in wards %}
+                            <div class="form-check">
+                                <input class="form-check-input edit-ward-checkbox" type="checkbox" name="wards" value="{{ ward.id }}" id="edit-ward-{{ ward.id }}">
+                                <label class="form-check-label" for="edit-ward-{{ ward.id }}">
+                                    Ward {{ ward.ward_no }} - {{ ward.ward_name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>Update Contractor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Create Contractor
+document.getElementById('createContractorForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+    
+    try {
+        const response = await fetch('{% url "admin_portal:create_contractor" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('createContractorModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="bi bi-check-circle me-2"></i>Create Contractor';
+        }
+    } catch (error) {
+        alert('An error occurred. Please try again.');
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="bi bi-check-circle me-2"></i>Create Contractor';
+    }
+});
+
+// Edit Contractor
+document.querySelectorAll('.edit-contractor').forEach(link => {
+    link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const contractorId = link.dataset.contractorId;
+        
+        // Fetch contractor data
+        const contractors = {{ contractors|safe|default:"[]" }};
+        // Note: In production, fetch via AJAX. For now, pass data via template
+        
+        // For simplicity, reload page to edit. In production, use AJAX to fetch contractor data
+        location.href = `{% url "admin_portal:manage_contractors" %}?edit=${contractorId}`;
+    });
+});
+
+// Delete Contractor
+document.querySelectorAll('.delete-contractor').forEach(link => {
+    link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const contractorId = link.dataset.contractorId;
+        const contractorName = link.dataset.contractorName;
+        
+        if (!confirm(`Are you sure you want to delete contractor "${contractorName}"? This will also delete their user account.`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/admin-portal/contractors/${contractorId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('An error occurred. Please try again.');
+        }
+    });
+});
+
+// Edit Contractor Form Submit
+document.getElementById('editContractorForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const contractorId = document.getElementById('edit-contractor-id').value;
+    const formData = new FormData(e.target);
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+    
+    try {
+        const response = await fetch(`/admin-portal/contractors/${contractorId}/update/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editContractorModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="bi bi-check-circle me-2"></i>Update Contractor';
+        }
+    } catch (error) {
+        alert('An error occurred. Please try again.');
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="bi bi-check-circle me-2"></i>Update Contractor';
+    }
+});
+</script>
+{% endblock %}

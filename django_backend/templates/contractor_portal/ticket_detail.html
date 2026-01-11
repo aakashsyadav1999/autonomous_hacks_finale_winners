@@ -1,0 +1,838 @@
+{% extends 'contractor_portal/base.html' %}
+
+{% block title %}Ticket {{ ticket.ticket_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ticket-image {
+        width: 100%;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-item {
+        padding: 1rem;
+        background-color: #F9FAFB;
+        border-radius: 8px;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: #6B7280;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        color: #1F2937;
+        font-weight: 600;
+    }
+    
+    .map-button {
+        background: linear-gradient(135deg, #3B82F6, #2563EB);
+        border: none;
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        width: 100%;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .map-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        color: white;
+    }
+    
+    .upload-section {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+        border: 2px dashed #10B981;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+        max-width: 400px;
+        margin: 1rem auto;
+    }
+    
+    .file-input-wrapper input[type=file] {
+        position: absolute;
+        left: -9999px;
+    }
+    
+    .file-input-label {
+        display: block;
+        padding: 1rem 2rem;
+        background: white;
+        border: 2px solid #10B981;
+        color: #10B981;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .file-input-label:hover {
+        background: #10B981;
+        color: white;
+    }
+    
+    #imagePreview {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+    }
+    
+    .completion-card {
+        background: rgba(16, 185, 129, 0.05);
+        border: 2px solid #10B981;
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+    
+    .verification-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    .verification-badge.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10B981;
+    }
+    
+    .verification-badge.failed {
+        background: rgba(239, 68, 68, 0.1);
+        color: #EF4444;
+    }
+    
+    /* Camera capture styles */
+    #video-container {
+        position: relative;
+        width: 100%;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    #video {
+        width: 100%;
+        display: block;
+    }
+    
+    #canvas {
+        display: none;
+    }
+    
+    .camera-controls {
+        position: absolute;
+        bottom: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+    }
+    
+    .capture-button {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: white;
+        border: 4px solid #10B981;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .capture-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+    }
+    
+    .location-display {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-top: 10px;
+    }
+    
+    #map-preview {
+        width: 100%;
+        height: 200px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'contractor_portal:dashboard' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <!-- Left Column: Ticket Details -->
+    <div class="col-lg-8">
+        <div class="card-custom p-4 mb-4">
+            <h4 class="fw-bold mb-3">Ticket {{ ticket.ticket_number }}</h4>
+            
+            {% if ticket.civic_complaint.image %}
+            <img src="{{ ticket.civic_complaint.image.url }}" alt="Complaint" class="ticket-image">
+            {% endif %}
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">
+                        {% if ticket.status == 'ASSIGNED' %}
+                        <span class="badge bg-info">Assigned</span>
+                        {% elif ticket.status == 'IN_PROGRESS' %}
+                        <span class="badge bg-primary">In Progress</span>
+                        {% elif ticket.status == 'RESOLVED' %}
+                        <span class="badge bg-success">Resolved</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Category</div>
+                    <div class="info-value">{{ ticket.category }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Department</div>
+                    <div class="info-value">{{ ticket.department }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Severity</div>
+                    <div class="info-value">
+                        {% if ticket.severity == 'High' or ticket.severity == 'Critical' %}
+                        <span class="badge bg-danger">{{ ticket.severity }}</span>
+                        {% elif ticket.severity == 'Medium' %}
+                        <span class="badge bg-warning">{{ ticket.severity }}</span>
+                        {% else %}
+                        <span class="badge bg-info">{{ ticket.severity }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tools and Safety Equipment Section -->
+            {% if ticket.suggested_tools or ticket.safety_equipment %}
+            <div class="alert alert-info border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(13, 110, 253, 0.05));">
+                <div class="row">
+                    {% if ticket.suggested_tools %}
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <h6 class="fw-bold text-primary mb-3">
+                            <i class="bi bi-tools me-2"></i>Suggested Tools
+                        </h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for tool in suggested_tools_list %}
+                            <span class="badge bg-primary" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
+                                <i class="bi bi-wrench me-1"></i>{{ tool }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if ticket.safety_equipment %}
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-warning mb-3">
+                            <i class="bi bi-shield-check me-2"></i>Safety Equipment Required
+                        </h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for equipment in safety_equipment_list %}
+                            <span class="badge bg-warning text-dark" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
+                                <i class="bi bi-shield-fill-check me-1"></i>{{ equipment }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Location</div>
+                    <div class="info-value">{{ ticket.civic_complaint.area }}</div>
+                    <small class="text-muted">{{ ticket.civic_complaint.street }}</small>
+                </div>
+                
+                {% if ticket.ward %}
+                <div class="info-item">
+                    <div class="info-label">Ward</div>
+                    <div class="info-value">Ward #{{ ticket.ward.ward_no }}</div>
+                    <small class="text-muted">{{ ticket.ward.ward_name }}</small>
+                </div>
+                {% endif %}
+                
+                <div class="info-item">
+                    <div class="info-label">Created</div>
+                    <div class="info-value">{{ ticket.created_at|date:"M d, Y" }}</div>
+                    <small class="text-muted">{{ ticket.created_at|time:"H:i" }}</small>
+                </div>
+            </div>
+            
+            <!-- Google Maps Button -->
+            <a href="{{ google_maps_url }}" target="_blank" class="map-button">
+                <i class="bi bi-geo-alt-fill me-2"></i>
+                Open in Google Maps
+            </a>
+        </div>
+        
+        <!-- Work Completion Status -->
+        {% if completion %}
+        <div class="completion-card">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Work Completion Submitted
+            </h5>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <img src="{{ completion.after_image.url }}" alt="After Work" class="img-fluid rounded">
+                    <p class="text-center mt-2 text-muted small">After-work photo</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-item mb-3">
+                        <div class="info-label">Submission Date</div>
+                        <div class="info-value">{{ completion.submitted_at|date:"M d, Y H:i" }}</div>
+                    </div>
+                    
+                    <div class="info-item mb-3">
+                        <div class="info-label">Distance from Location</div>
+                        <div class="info-value">{{ completion.distance_from_original|floatformat:1 }}m</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">AI Verification</div>
+                        <div class="info-value">
+                            {% if completion.ai_verified %}
+                            <span class="verification-badge success">
+                                <i class="bi bi-check-circle-fill"></i> Verified
+                            </span>
+                            {% else %}
+                            <span class="verification-badge failed">
+                                <i class="bi bi-x-circle-fill"></i> Not Verified
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if completion.ai_verification_message %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        {{ completion.ai_verification_message }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Right Column: Capture/Upload Section -->
+    <div class="col-lg-4">
+        <!-- Start Work Button (shown when status is ASSIGNED) -->
+        {% if ticket.status == 'ASSIGNED' and not completion %}
+        <div class="card-custom p-4 mb-3">
+            <h5 class="fw-bold mb-3">Start Work</h5>
+            <p class="text-muted small mb-4">
+                Click the button below to mark this ticket as "In Progress" and let the admin know you've started working on it.
+            </p>
+            <button type="button" class="btn btn-primary-custom w-100" id="startWorkBtn" onclick="startWork()">
+                <i class="bi bi-play-circle me-2"></i>Start Work
+            </button>
+        </div>
+        {% endif %}
+        
+        <!-- Show work started indicator when status is IN_PROGRESS -->
+        {% if ticket.status == 'IN_PROGRESS' and not completion %}
+        <div class="alert alert-info mb-3">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <strong>Work In Progress</strong><br>
+            <small>You've marked this ticket as in progress. Complete the work and upload the after photo below.</small>
+        </div>
+        {% endif %}
+        
+        <!-- Complete Work Section (hidden when status is RESOLVED) -->
+        {% if ticket.status != 'RESOLVED' and not completion %}
+        <div class="card-custom p-4">
+            <h5 class="fw-bold mb-3">Complete Work</h5>
+            <p class="text-muted small mb-4">
+                Capture or upload a photo of the completed work. You must be within 50 meters of the work location.
+            </p>
+            
+            <!-- Camera Capture Section -->
+            <div id="camera-section" style="display: none;">
+                <div id="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <div class="camera-controls">
+                        <button type="button" class="capture-button" id="capture-btn" title="Capture Photo">
+                            <i class="bi bi-camera-fill" style="font-size: 1.5rem; color: #10B981;"></i>
+                        </button>
+                    </div>
+                </div>
+                <canvas id="canvas"></canvas>
+                
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-2" id="stop-camera-btn">
+                    <i class="bi bi-x-circle me-2"></i>Cancel Camera
+                </button>
+            </div>
+            
+            <!-- Preview Section -->
+            <div id="preview-section" style="display: none;">
+                <img id="imagePreview" alt="Preview" class="img-fluid rounded mb-2">
+                <div id="location-info" class="location-display">
+                    <i class="bi bi-geo-alt-fill text-danger"></i>
+                    <strong>Location:</strong>
+                    <div id="coords-display" class="mt-1"></div>
+                    <div id="distance-display" class="mt-1 text-success"></div>
+                </div>
+                <div id="map-preview"></div>
+                
+                <div class="d-grid gap-2 mt-3">
+                    <button type="button" class="btn btn-success" id="confirm-submit-btn">
+                        <i class="bi bi-check-circle me-2"></i>Submit Completion
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="retake-btn">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Retake Photo
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Initial Options -->
+            <div id="initial-options">
+                <form id="completionForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="upload-section mb-3">
+                        <i class="bi bi-camera" style="font-size: 3rem; color: #10B981;"></i>
+                        <h6 class="mt-3 fw-bold">Capture After-Work Photo</h6>
+                        <p class="text-muted small">Use camera to take a photo of completed work</p>
+                        
+                        <button type="button" class="btn btn-primary-custom w-100 mb-3" id="start-camera-btn">
+                            <i class="bi bi-camera me-2"></i>📷 Open Camera
+                        </button>
+                        
+                        <hr class="my-3">
+                        
+                        <p class="text-muted small mb-2"><small>Or upload from gallery (for testing)</small></p>
+                        
+                        <div class="file-input-wrapper">
+                            <input type="file" 
+                                   name="after_image" 
+                                   id="afterImage" 
+                                   accept="image/*">
+                            <label for="afterImage" class="file-input-label">
+                                <i class="bi bi-upload me-2"></i>📁 Upload Photo
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <small>We'll fetch and verify your location when you capture/upload.</small>
+                    </div>
+                    
+                    <input type="hidden" name="latitude" id="latitude">
+                    <input type="hidden" name="longitude" id="longitude">
+                    <input type="hidden" name="image_data" id="image_data">
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Work Completed!</strong><br>
+            Your completion has been submitted and
+            {% if completion.ai_verified %}
+            AI has verified your work.
+            {% else %}
+            is pending review.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
+<script>
+    // Get CSRF token from the form
+    function getCsrfToken() {
+        const tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        return tokenElement ? tokenElement.value : '';
+    }
+    
+    const TICKET_ID = {{ ticket.id }};
+    
+    // Start Work function
+    function startWork() {
+        console.log('Start Work button clicked'); // Debug log
+        
+        if (!confirm('Are you sure you want to start work on this ticket?')) {
+            return;
+        }
+        
+        const btn = document.getElementById('startWorkBtn');
+        const csrftoken = getCsrfToken();
+        
+        console.log('CSRF Token:', csrftoken); // Debug log
+        console.log('Ticket ID:', TICKET_ID); // Debug log
+        
+        if (!csrftoken) {
+            alert('Security token not found. Please refresh the page.');
+            return;
+        }
+        
+        if (btn) {
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
+        }
+        
+        const url = `/contractor/ticket/${TICKET_ID}/start-work/`;
+        console.log('Fetching URL:', url); // Debug log
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log('Response status:', response.status); // Debug log
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data); // Debug log
+            if (data.success) {
+                alert(data.message);
+                // Reload page to show updated status
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to start work'));
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-play-circle me-2"></i>Start Work';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error); // Debug log
+            alert('An error occurred while starting work: ' + error.message);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-play-circle me-2"></i>Start Work';
+            }
+        });
+    }
+    
+    // Global state
+    let stream = null;
+    let capturedImageBlob = null;
+    let currentLocation = { latitude: null, longitude: null };
+    let map = null;
+    let marker = null;
+    
+    const ticketLat = {{ ticket.civic_complaint.latitude }};
+    const ticketLon = {{ ticket.civic_complaint.longitude }};
+    
+    // DOM elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const startCameraBtn = document.getElementById('start-camera-btn');
+    const stopCameraBtn = document.getElementById('stop-camera-btn');
+    const captureBtn = document.getElementById('capture-btn');
+    const retakeBtn = document.getElementById('retake-btn');
+    const confirmSubmitBtn = document.getElementById('confirm-submit-btn');
+    const afterImageInput = document.getElementById('afterImage');
+    const imagePreview = document.getElementById('imagePreview');
+    const initialOptions = document.getElementById('initial-options');
+    const cameraSection = document.getElementById('camera-section');
+    const previewSection = document.getElementById('preview-section');
+    
+    // Initialize camera
+    async function initCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                } 
+            });
+            video.srcObject = stream;
+            
+            initialOptions.style.display = 'none';
+            cameraSection.style.display = 'block';
+        } catch (error) {
+            alert('Camera access denied. Please allow camera permissions or use upload option.');
+            console.error('Camera error:', error);
+        }
+    }
+    
+    // Stop camera
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        cameraSection.style.display = 'none';
+        initialOptions.style.display = 'block';
+    }
+    
+    // Get current location
+    function getCurrentLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation not supported'));
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    currentLocation.latitude = position.coords.latitude;
+                    currentLocation.longitude = position.coords.longitude;
+                    resolve(currentLocation);
+                },
+                (error) => reject(error),
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        });
+    }
+    
+    // Calculate distance between two points (Haversine formula)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+        
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        
+        return R * c; // Distance in meters
+    }
+    
+    // Display location with map or coordinates
+    function displayLocation() {
+        const coordsDisplay = document.getElementById('coords-display');
+        const distanceDisplay = document.getElementById('distance-display');
+        
+        coordsDisplay.innerHTML = `Lat: ${currentLocation.latitude.toFixed(6)}, Lon: ${currentLocation.longitude.toFixed(6)}`;
+        
+        const distance = calculateDistance(
+            ticketLat, ticketLon,
+            currentLocation.latitude, currentLocation.longitude
+        );
+        
+        distanceDisplay.innerHTML = `<i class="bi bi-check-circle-fill"></i> Distance from ticket location: ${distance.toFixed(1)}m`;
+        
+        // Try to show map (if Google Maps API is available)
+        try {
+            const mapDiv = document.getElementById('map-preview');
+            map = new google.maps.Map(mapDiv, {
+                center: { lat: currentLocation.latitude, lng: currentLocation.longitude },
+                zoom: 16,
+                mapTypeId: 'roadmap'
+            });
+            
+            // Add marker for current location
+            marker = new google.maps.Marker({
+                position: { lat: currentLocation.latitude, lng: currentLocation.longitude },
+                map: map,
+                title: 'Your Location',
+                icon: {
+                    url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                }
+            });
+            
+            // Add marker for ticket location
+            new google.maps.Marker({
+                position: { lat: ticketLat, lng: ticketLon },
+                map: map,
+                title: 'Ticket Location',
+                icon: {
+                    url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                }
+            });
+        } catch (e) {
+            // Google Maps not available, just show coordinates
+            console.log('Google Maps not available');
+        }
+    }
+    
+    // Start camera button
+    startCameraBtn.addEventListener('click', initCamera);
+    
+    // Stop camera button
+    stopCameraBtn.addEventListener('click', stopCamera);
+    
+    // Capture photo button
+    captureBtn.addEventListener('click', async () => {
+        // Get location first
+        captureBtn.disabled = true;
+        captureBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        try {
+            await getCurrentLocation();
+        } catch (error) {
+            alert('Location access required. Please enable location services.');
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = '<i class="bi bi-camera-fill" style="font-size: 1.5rem; color: #10B981;"></i>';
+            return;
+        }
+        
+        // Capture image
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        canvas.toBlob((blob) => {
+            capturedImageBlob = blob;
+            imagePreview.src = URL.createObjectURL(blob);
+            
+            // Stop camera
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Show preview
+            cameraSection.style.display = 'none';
+            previewSection.style.display = 'block';
+            
+            displayLocation();
+            
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = '<i class="bi bi-camera-fill" style="font-size: 1.5rem; color: #10B981;"></i>';
+        }, 'image/jpeg', 0.85);
+    });
+    
+    // Retake photo button
+    retakeBtn.addEventListener('click', () => {
+        previewSection.style.display = 'none';
+        initialOptions.style.display = 'block';
+        capturedImageBlob = null;
+    });
+    
+    // Handle file upload
+    afterImageInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Show loading
+        const label = this.nextElementSibling;
+        const originalText = label.innerHTML;
+        label.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Getting location...';
+        
+        try {
+            // Get location when file is selected
+            await getCurrentLocation();
+            
+            // Show preview
+            capturedImageBlob = file;
+            imagePreview.src = URL.createObjectURL(file);
+            
+            initialOptions.style.display = 'none';
+            previewSection.style.display = 'block';
+            
+            displayLocation();
+            
+            label.innerHTML = originalText;
+        } catch (error) {
+            alert('Location access required. Please enable location services.');
+            label.innerHTML = originalText;
+            this.value = '';
+        }
+    });
+    
+    // Confirm submit button
+    confirmSubmitBtn.addEventListener('click', async function() {
+        if (!capturedImageBlob || !currentLocation.latitude) {
+            alert('Please capture or select a photo first');
+            return;
+        }
+        
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+        
+        const formData = new FormData();
+        formData.append('after_image', capturedImageBlob, 'completion.jpg');
+        formData.append('latitude', currentLocation.latitude);
+        formData.append('longitude', currentLocation.longitude);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        try {
+            const response = await fetch('{% url "contractor_portal:submit_completion" ticket.id %}', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast(result.message, result.ai_verified ? 'success' : 'warning');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showToast(result.error, 'error');
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-check-circle me-2"></i>Submit Completion';
+            }
+        } catch (error) {
+            showToast('Network error. Please try again.', 'error');
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-check-circle me-2"></i>Submit Completion';
+        }
+    });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+</script>
+{% endblock %}

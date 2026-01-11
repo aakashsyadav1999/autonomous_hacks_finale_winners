@@ -1,0 +1,499 @@
+{% extends 'user_portal/base.html' %}
+
+{% block title %}Report Civic Issue - Smart Civic Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    #video-container {
+        position: relative;
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        background: #000;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    #video {
+        width: 100%;
+        display: block;
+    }
+    
+    #canvas {
+        display: none;
+    }
+    
+    .camera-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+    }
+    
+    .capture-button {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: white;
+        border: 4px solid #667eea;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .capture-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    .capture-button:active {
+        transform: scale(0.95);
+    }
+    
+    .preview-image {
+        max-width: 100%;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .location-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 15px;
+    }
+    
+    .spinner-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1><i class="bi bi-camera-fill"></i> Report Civic Issue</h1>
+        <p class="mb-0 mt-2">Capture a photo of the civic issue with location</p>
+    </div>
+    <div class="card-body">
+        <!-- Step 1: Camera Access -->
+        <div id="step-camera" class="step-content">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Location Required:</strong> Please allow camera and location access to report civic issues.
+            </div>
+            
+            <div id="video-container">
+                <video id="video" autoplay playsinline></video>
+                <div class="camera-controls">
+                    <button type="button" class="capture-button" id="capture-btn" title="Capture Photo">
+                        <i class="bi bi-camera-fill" style="font-size: 2rem; color: #667eea;"></i>
+                    </button>
+                </div>
+            </div>
+            <canvas id="canvas"></canvas>
+            
+            <div class="text-center mt-3">
+                <p class="text-muted">
+                    <i class="bi bi-shield-check"></i> Your location is used only to identify the civic issue area
+                </p>
+                
+                <hr class="my-3">
+                
+                <p class="text-muted small mb-2">Or upload from gallery (for testing)</p>
+                <div class="file-input-wrapper" style="max-width: 300px; margin: 0 auto;">
+                    <input type="file" 
+                           id="upload-image-input" 
+                           accept="image/*"
+                           style="display: none;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="upload-image-btn">
+                        <i class="bi bi-upload me-2"></i>📁 Upload Photo
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Step 2: Photo Preview & Submit -->
+        <div id="step-preview" class="step-content" style="display: none;">
+            <div class="text-center">
+                <img id="preview-img" class="preview-image" src="" alt="Captured Photo">
+            </div>
+            
+            <div id="location-display" class="location-info">
+                <h5><i class="bi bi-geo-alt-fill text-danger"></i> Location Details</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-label">Area:</div>
+                        <div class="info-value" id="location-area">-</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-label">Street:</div>
+                        <div class="info-value" id="location-street">-</div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <div class="info-label">Postal Code:</div>
+                        <div class="info-value" id="location-postal">-</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-label">Coordinates:</div>
+                        <div class="info-value" id="location-coords">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 mt-4">
+                <button type="button" class="btn btn-primary btn-lg" id="submit-btn">
+                    <i class="bi bi-send-fill"></i> Submit Complaint
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="retake-btn">
+                    <i class="bi bi-arrow-counterclockwise"></i> Retake Photo
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 3: Success -->
+        <div id="step-success" class="step-content" style="display: none;">
+            <div class="text-center">
+                <div class="mb-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                </div>
+                <h3 class="text-success">Complaint Submitted Successfully!</h3>
+                <p class="lead">Your tickets have been created</p>
+                
+                <div id="tickets-list" class="mt-4">
+                    <!-- Tickets will be inserted here -->
+                </div>
+                
+                <div class="d-grid gap-2 mt-4">
+                    <a href="/track/" class="btn btn-primary btn-lg">
+                        <i class="bi bi-search"></i> Track Your Tickets
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" id="report-another-btn">
+                        <i class="bi bi-camera"></i> Report Another Issue
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="spinner-overlay" style="display: none;">
+    <div class="text-center text-white">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3" id="loading-text">Processing...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global state
+let stream = null;
+let capturedImageData = null;
+let sessionId = null;
+let complaintId = null;
+let currentLocation = { latitude: null, longitude: null };
+
+// DOM elements
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const captureBtn = document.getElementById('capture-btn');
+const retakeBtn = document.getElementById('retake-btn');
+const submitBtn = document.getElementById('submit-btn');
+const reportAnotherBtn = document.getElementById('report-another-btn');
+const previewImg = document.getElementById('preview-img');
+const loadingOverlay = document.getElementById('loading-overlay');
+const loadingText = document.getElementById('loading-text');
+const uploadImageBtn = document.getElementById('upload-image-btn');
+const uploadImageInput = document.getElementById('upload-image-input');
+
+// Initialize camera
+async function initCamera() {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: 'environment',  // Use rear camera on mobile
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            } 
+        });
+        video.srcObject = stream;
+    } catch (error) {
+        showError('Camera access denied. Please allow camera permissions.');
+        console.error('Camera error:', error);
+    }
+}
+
+// Get current location
+function getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Geolocation not supported'));
+            return;
+        }
+        
+        showLoading('Fetching location...');
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                currentLocation.latitude = position.coords.latitude;
+                currentLocation.longitude = position.coords.longitude;
+                hideLoading();
+                resolve(currentLocation);
+            },
+            (error) => {
+                hideLoading();
+                reject(error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    });
+}
+
+// Capture photo
+captureBtn.addEventListener('click', async () => {
+    // Get location first
+    try {
+        await getCurrentLocation();
+    } catch (error) {
+        showError('Location access required. Please enable location services.');
+        return;
+    }
+    
+    // Capture image
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    
+    capturedImageData = canvas.toDataURL('image/jpeg', 0.85);
+    previewImg.src = capturedImageData;
+    
+    // Stop camera
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Send to backend
+    showLoading('Saving photo and fetching address...');
+    
+    try {
+        const response = await fetch('/api/user/capture-photo/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image_base64: capturedImageData,
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            sessionId = data.session_id;
+            complaintId = data.complaint_id;
+            
+            // Display location
+            document.getElementById('location-area').textContent = data.location.area;
+            document.getElementById('location-street').textContent = data.location.street || '-';
+            document.getElementById('location-postal').textContent = data.location.postal_code || '-';
+            document.getElementById('location-coords').textContent = 
+                `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`;
+            
+            showStep('preview');
+        } else {
+            showError(data.error || 'Failed to save photo');
+            await initCamera();  // Restart camera
+        }
+    } catch (error) {
+        showError('Network error. Please check your connection.');
+        console.error('Capture error:', error);
+        await initCamera();  // Restart camera
+    } finally {
+        hideLoading();
+    }
+});
+
+// Retake photo
+retakeBtn.addEventListener('click', async () => {
+    showStep('camera');
+    await initCamera();
+});
+
+// Submit complaint
+submitBtn.addEventListener('click', async () => {
+    showLoading('Submitting complaint for validation...');
+    
+    try {
+        const response = await fetch('/api/user/submit-complaint/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_id: sessionId,
+                complaint_id: complaintId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Display tickets
+            const ticketsList = document.getElementById('tickets-list');
+            ticketsList.innerHTML = data.tickets.map((ticketNumber, index) => `
+                <div class="alert alert-success">
+                    <h5><i class="bi bi-ticket-perforated"></i> Ticket ${index + 1}</h5>
+                    <p class="mb-0"><strong>Ticket Number:</strong> <span class="badge bg-primary">${ticketNumber}</span></p>
+                    <p class="mb-0 mt-2"><small>Category: ${data.details[index].category} | Severity: ${data.details[index].severity}</small></p>
+                </div>
+            `).join('');
+            
+            showStep('success');
+        } else {
+            showError(data.message || 'Complaint validation failed');
+            showStep('camera');
+            await initCamera();
+        }
+    } catch (error) {
+        showError('Network error. Please try again.');
+        console.error('Submit error:', error);
+    } finally {
+        hideLoading();
+    }
+});
+
+// Report another issue
+reportAnotherBtn.addEventListener('click', async () => {
+    showStep('camera');
+    await initCamera();
+});
+
+// Upload image button (for testing)
+uploadImageBtn.addEventListener('click', () => {
+    uploadImageInput.click();
+});
+
+// Handle file upload
+uploadImageInput.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    showLoading('Getting location...');
+    
+    try {
+        // Get location when file is selected
+        await getCurrentLocation();
+        
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            capturedImageData = e.target.result;
+            previewImg.src = capturedImageData;
+            
+            // Send to backend (same as capture)
+            showLoading('Saving photo and fetching address...');
+            
+            try {
+                const response = await fetch('/api/user/capture-photo/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_base64: capturedImageData,
+                        latitude: currentLocation.latitude,
+                        longitude: currentLocation.longitude
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    sessionId = data.session_id;
+                    complaintId = data.complaint_id;
+                    
+                    // Display location
+                    document.getElementById('location-area').textContent = data.location.area;
+                    document.getElementById('location-street').textContent = data.location.street || '-';
+                    document.getElementById('location-postal').textContent = data.location.postal_code || '-';
+                    document.getElementById('location-coords').textContent = 
+                        `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`;
+                    
+                    // Stop camera if running
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    showStep('preview');
+                } else {
+                    showError(data.error || 'Failed to save photo');
+                }
+            } catch (error) {
+                showError('Network error. Please check your connection.');
+                console.error('Upload error:', error);
+            } finally {
+                hideLoading();
+            }
+        };
+        reader.readAsDataURL(file);
+        
+    } catch (error) {
+        showError('Location access required. Please enable location services.');
+        hideLoading();
+        this.value = '';
+    }
+});
+
+// Show/hide steps
+function showStep(step) {
+    document.querySelectorAll('.step-content').forEach(el => el.style.display = 'none');
+    document.getElementById(`step-${step}`).style.display = 'block';
+}
+
+// Loading overlay
+function showLoading(message) {
+    loadingText.textContent = message;
+    loadingOverlay.style.display = 'flex';
+}
+
+function hideLoading() {
+    loadingOverlay.style.display = 'none';
+}
+
+// Error display
+function showError(message) {
+    alert(`❌ ${message}`);
+}
+
+// Initialize on page load
+window.addEventListener('load', initCamera);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+});
+</script>
+{% endblock %}
