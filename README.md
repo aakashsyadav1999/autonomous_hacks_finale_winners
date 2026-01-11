@@ -1,247 +1,187 @@
-# Smart Civic Complaint Management System - AI Backend
+# Smart Civic Complaint Management System
 
-AI-powered backend for analyzing civic complaint images, verifying work completion, and generating predictive analytics reports.
+A comprehensive platform for citizens to report civic issues in Ahmedabad, Gujarat, India. Features AI-powered complaint analysis, automatic categorization, work verification, and predictive analytics.
 
-## Tech Stack
+## 🏗️ Architecture
 
-- **FastAPI** - Web framework
-- **Google Gemini 2.5 Flash** - AI/ML model
-- **LangGraph** - Agent orchestration
-- **Shapely** - Geospatial ward mapping
-- **uv** - Package manager
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Smart Civic Platform                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐          ┌──────────────────┐             │
+│  │   Django Backend │◄────────►│    AI Backend    │             │
+│  │   (Port 8000)    │   REST   │   (Port 8080)    │             │
+│  │                  │   API    │                  │             │
+│  │  • User Portal   │          │  • Image Analysis│             │
+│  │  • Admin Portal  │          │  • Work Verify   │             │
+│  │  • Ticket Mgmt   │          │  • Predictions   │             │
+│  │  • Contractor    │          │  • Ward Mapping  │             │
+│  └──────────────────┘          └──────────────────┘             │
+│           │                            │                         │
+│           ▼                            ▼                         │
+│    ┌────────────┐              ┌──────────────┐                 │
+│    │  SQLite DB │              │ Google Gemini│                 │
+│    └────────────┘              │  2.5 Flash   │                 │
+│                                └──────────────┘                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-## Setup
+## 🌟 Features
+
+### User Portal (Django)
+- 📸 Photo capture with GPS location
+- 🗺️ Automatic reverse geocoding
+- 🎫 Ticket tracking (CMP-YYYYMMDD-NNN format)
+- ⭐ Work rating system (1-5 stars)
+
+### Admin Portal (Django)
+- 👥 Ward management
+- 🔧 Contractor management
+- 📋 Ticket assignment & status updates
+
+### AI Features (FastAPI)
+- 🔍 **Image Analysis**: Detect civic issues, categorize, assess severity
+- 🛠️ **Tool Suggestions**: Recommended tools & safety equipment
+- 📍 **Ward Mapping**: GeoJSON-based location to ward mapping
+- ✅ **Work Verification**: Before/after image comparison
+- 📊 **Predictive Analytics**: 30-day risk prediction reports
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.10+
+- Git
+- Google AI API Key
+
+### 1. Clone & Setup
+
+```bash
+git clone <repository-url>
+cd autonomous_hacks_finale_winners
+```
+
+### 2. Start Django Backend (Port 8000)
+
+```bash
+cd django_backend
+pip install -r requirements.txt
+python3 manage.py migrate
+python3 manage.py runserver 0.0.0.0:8000
+```
+
+### 3. Start AI Backend (Port 8080)
 
 ```bash
 cd ai_backend
-
-# Create .env file
 cp .env.example .env
-# Add your GOOGLE_API_KEY to .env
+# Add GOOGLE_API_KEY to .env
 
-# Install dependencies
 uv sync
-
-# Run server
 uv run uvicorn main:app --reload --port 8080
 ```
 
-## Environment Variables
+---
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GOOGLE_API_KEY` | Yes | - | Google AI API key |
-| `MODEL_NAME` | No | `gemini-2.5-flash` | Gemini model name |
-| `DEBUG` | No | `false` | Enable debug mode |
+## 📡 API Endpoints
+
+### Django Backend (Port 8000)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/capture/` | GET | Photo capture page |
+| `/track/` | GET | Ticket tracking page |
+| `/admin/` | GET | Django admin |
+| `/api/user/capture-photo/` | POST | Submit photo with location |
+| `/api/user/submit-complaint/` | POST | Submit complaint for AI analysis |
+| `/api/user/track-ticket/` | GET | Track ticket by number |
+| `/api/user/rate-ticket/` | POST | Rate resolved ticket |
+
+### AI Backend (Port 8080)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/analyze/complaint` | POST | Analyze complaint image |
+| `/api/v1/verify/completion` | POST | Verify work completion |
+| `/api/v1/analytics/predict` | POST | Generate predictive report |
+| `/docs` | GET | Swagger API documentation |
 
 ---
 
-## API Endpoints
+## 🗂️ Project Structure
 
-Base URL: `http://localhost:8080/api/v1`
-
----
-
-### 1. Complaint Analysis
-
-**Endpoint:** `POST /api/v1/analyze/complaint`
-
-Analyzes a civic complaint image and returns detected issues with category, department, severity, tools, safety equipment, and ward mapping.
-
-**Request:**
-```json
-{
-  "image": "<base64_encoded_image>",
-  "street": "MG Road",
-  "area": "Nikol",
-  "postal_code": "382350",
-  "latitude": 23.0425,
-  "longitude": 72.6346
-}
 ```
-
-**Response (Valid Issue):**
-```json
-{
-  "is_valid": true,
-  "data": [
-    {
-      "category": "Garbage/Waste accumulation",
-      "department": "Sanitation Department",
-      "severity": "Medium",
-      "suggested_tools": ["Broom", "Garbage bags", "Shovel", "Wheelbarrow"],
-      "safety_equipment": ["Heavy-duty gloves", "Face mask", "Safety boots"]
-    }
-  ],
-  "ward_no": "24",
-  "error": null
-}
-```
-
-**Response (Invalid Image):**
-```json
-{
-  "is_valid": false,
-  "data": [],
-  "ward_no": null,
-  "error": "Image does not contain recognizable civic issues"
-}
+autonomous_hacks_finale_winners/
+├── django_backend/           # Django web application
+│   ├── civic_complaint_system/  # Project settings
+│   ├── user_portal/             # Citizen-facing app
+│   ├── admin_portal/            # Admin management
+│   └── requirements.txt
+│
+├── ai_backend/               # FastAPI AI services
+│   ├── app/
+│   │   ├── agents/              # AI agents (vision, verification, predictive)
+│   │   ├── api/routes/          # API endpoints
+│   │   ├── api/schemas/         # Pydantic models
+│   │   ├── services/            # Ward mapping service
+│   │   └── data/                # GeoJSON ward boundaries
+│   ├── main.py
+│   └── pyproject.toml
+│
+└── README.md                 # This file
 ```
 
 ---
 
-### 2. Work Verification
+## 📋 Issue Categories
 
-**Endpoint:** `POST /api/v1/verify/completion`
+| Category | Department | Severity Levels |
+|----------|------------|-----------------|
+| Garbage/Waste accumulation | Sanitation Department | Low, Medium, High |
+| Manholes/drainage damage | Roads & Infrastructure | Low, Medium, High |
+| Water leakage | Water Supply Department | Low, Medium, High |
+| Drainage overflow | Drainage Department | Low, Medium, High |
 
-Compares before/after images to verify if contractor work has been completed.
+---
 
-**Request:**
-```json
-{
-  "before_image": "<base64_encoded_original_complaint_image>",
-  "after_image": "<base64_encoded_contractor_completion_image>",
-  "category": "Garbage/Waste accumulation"
-}
+## 🔄 Ticket Lifecycle
+
 ```
-
-**Response (Completed):**
-```json
-{
-  "is_completed": true,
-  "error": null
-}
-```
-
-**Response (Not Completed):**
-```json
-{
-  "is_completed": false,
-  "error": "Garbage is still visible in the after image"
-}
+SUBMITTED → ASSIGNED → IN_PROGRESS → RESOLVED
+    │           │            │           │
+    └── AI      └── Admin    └── Work    └── User
+       analyzes    assigns      starts      rates
 ```
 
 ---
 
-### 3. Predictive Analysis
+## 🛠️ Technology Stack
 
-**Endpoint:** `POST /api/v1/analytics/predict`
-
-Analyzes historical ticket data and generates an HTML predictive report for the next 30 days.
-
-**Request:**
-```json
-{
-  "tickets": [
-    {
-      "ticket_number": "TKT-001",
-      "category": "Manholes/drainage opening damage",
-      "severity": "High",
-      "department": "Roads & Infrastructure",
-      "ward_no": "24",
-      "ward_name": "Nikol",
-      "created_at": "2025-12-01T10:00:00",
-      "resolved_at": "2025-12-05T14:00:00"
-    }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "report_html": "<!DOCTYPE html><html>...predictive report...</html>",
-  "generated_at": "2026-01-11T04:55:00",
-  "error": null
-}
-```
+| Component | Technology |
+|-----------|------------|
+| Web Backend | Django 5.0, Django REST Framework |
+| AI Backend | FastAPI, LangGraph, Google Gemini 2.5 Flash |
+| Database | SQLite3 (Django) |
+| Geospatial | Shapely, geopy, Nominatim |
+| Frontend | Bootstrap 5, Vanilla JavaScript |
+| Package Manager | pip (Django), uv (AI) |
 
 ---
 
-### 4. Health Checks
+## 📚 Documentation
 
-**Endpoints:**
-- `GET /api/v1/analyze/health`
-- `GET /api/v1/verify/health`
-- `GET /api/v1/analytics/health`
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "service": "complaint-analysis"
-}
-```
+- **Django Backend**: See [django_backend/README.md](django_backend/README.md)
+- **AI Backend**: See [ai_backend/README.md](ai_backend/README.md)
+- **AI Swagger UI**: http://localhost:8080/docs
 
 ---
 
-## Issue Categories
+## 👥 Contributors
 
-| Category | Department |
-|----------|------------|
-| Garbage/Waste accumulation | Sanitation Department |
-| Manholes/drainage opening damage | Roads & Infrastructure |
-| Water leakage | Water Supply Department |
-| Drainage overflow | Drainage Department |
-
-## Severity Levels
-
-- **Low** - Minor issues, no immediate danger
-- **Medium** - Moderate issues requiring attention
-- **High** - Critical issues requiring urgent action
+- **Development**: Smart Civic Team
 
 ---
 
-## cURL Examples
-
-### Analyze Complaint
-```bash
-curl -X POST "http://localhost:8080/api/v1/analyze/complaint" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "image": "<base64_image>",
-    "street": "SG Road",
-    "area": "Nikol",
-    "postal_code": "382350",
-    "latitude": 23.0425,
-    "longitude": 72.6346
-  }'
-```
-
-### Verify Work Completion
-```bash
-curl -X POST "http://localhost:8080/api/v1/verify/completion" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "before_image": "<base64_before>",
-    "after_image": "<base64_after>",
-    "category": "Garbage/Waste accumulation"
-  }'
-```
-
-### Generate Predictive Report
-```bash
-curl -X POST "http://localhost:8080/api/v1/analytics/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tickets": [
-      {
-        "ticket_number": "TKT-001",
-        "category": "Drainage overflow",
-        "severity": "High",
-        "department": "Drainage Department",
-        "ward_no": "21",
-        "ward_name": "Dariapur",
-        "created_at": "2025-12-01T10:00:00",
-        "resolved_at": "2025-12-05T14:00:00"
-      }
-    ]
-  }'
-```
-
----
-
-## API Documentation
-
-- Swagger UI: `http://localhost:8080/docs`
-- ReDoc: `http://localhost:8080/redoc`
+**Made with ❤️ for a Better Ahmedabad**
