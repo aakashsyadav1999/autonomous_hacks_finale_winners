@@ -11,9 +11,14 @@ Implements retry logic, timeout handling, and error management.
 import os
 import base64
 import requests
+from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 from decimal import Decimal
-from django.conf import settings
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in project root
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 
 class FastAPIError(Exception):
@@ -219,6 +224,77 @@ class FastAPIClient:
         
         # Call API with retry logic
         endpoint = f"{self.base_url}/api/v1/verify/completion"
+        
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                response = requests.post(
+                    endpoint,
+                    json=payload,
+                    timeout=self.timeout,
+                    headers={'Content-Type': 'application/json'}
+                )
+                
+                # Check status code
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    error_msg = f"API returned status {response.status_code}: {response.text}"
+                    
+                    # Don't retry for 4xx errors
+                    if 400 <= response.status_code < 500:
+                        raise FastAPIError(error_msg)
+                    
+                    # Retry for 5xx errors
+                    if attempt == self.max_retries:
+                        raise FastAPIError(error_msg)
+            
+            except requests.exceptions.Timeout:
+                if attempt == self.max_retries:
+                    raise FastAPIError(f"API request timed out after {self.timeout}s")
+            
+            except requests.exceptions.ConnectionError:
+                if attempt == self.max_retries:
+                    raise FastAPIError(f"Failed to connect to FastAPI server at {self.base_url}")
+            
+            except requests.exceptions.RequestException as e:
+                if attempt == self.max_retries:
+                    raise FastAPIError(f"API request failed: {str(e)}")
+        
+        raise FastAPIError("API call failed after retries")
+    
+    def predict_analytics(self, tickets_data: list) -> Dict[str, Any]:
+        """
+        Send resolved tickets data to AI for predictive risk analytics.
+        
+        Calls POST /api/v1/analytics/predict endpoint.
+        
+        Args:
+            tickets_data: List of ticket dictionaries with fields:
+                - ticket_number: str
+                - category: str
+                - severity: str
+                - department: str
+                - ward_no: str
+                - ward_name: str
+                - created_at: ISO datetime string
+                - resolved_at: ISO datetime string
+        
+        Returns:
+            Dictionary with analytics results:
+            {
+                "report_html": str (full HTML report),
+                "generated_at": ISO datetime string,
+                "error": str or None
+            }
+        
+        Raises:
+            FastAPIError: If API call fails after retries
+        """
+        # Prepare request payload
+        payload = {"tickets": tickets_data}
+        
+        # Call API with retry logic
+        endpoint = f"{self.base_url}/api/v1/analytics/predict"
         
         for attempt in range(1, self.max_retries + 1):
             try:

@@ -353,7 +353,30 @@
     
     <!-- Right Column: Capture/Upload Section -->
     <div class="col-lg-4">
-        {% if not completion %}
+        <!-- Start Work Button (shown when status is ASSIGNED) -->
+        {% if ticket.status == 'ASSIGNED' and not completion %}
+        <div class="card-custom p-4 mb-3">
+            <h5 class="fw-bold mb-3">Start Work</h5>
+            <p class="text-muted small mb-4">
+                Click the button below to mark this ticket as "In Progress" and let the admin know you've started working on it.
+            </p>
+            <button type="button" class="btn btn-primary-custom w-100" id="startWorkBtn" onclick="startWork()">
+                <i class="bi bi-play-circle me-2"></i>Start Work
+            </button>
+        </div>
+        {% endif %}
+        
+        <!-- Show work started indicator when status is IN_PROGRESS -->
+        {% if ticket.status == 'IN_PROGRESS' and not completion %}
+        <div class="alert alert-info mb-3">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <strong>Work In Progress</strong><br>
+            <small>You've marked this ticket as in progress. Complete the work and upload the after photo below.</small>
+        </div>
+        {% endif %}
+        
+        <!-- Complete Work Section (hidden when status is RESOLVED) -->
+        {% if ticket.status != 'RESOLVED' and not completion %}
         <div class="card-custom p-4">
             <h5 class="fw-bold mb-3">Complete Work</h5>
             <p class="text-muted small mb-4">
@@ -457,6 +480,77 @@
 {% block extra_js %}
 <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
 <script>
+    // Get CSRF token from the form
+    function getCsrfToken() {
+        const tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        return tokenElement ? tokenElement.value : '';
+    }
+    
+    const TICKET_ID = {{ ticket.id }};
+    
+    // Start Work function
+    function startWork() {
+        console.log('Start Work button clicked'); // Debug log
+        
+        if (!confirm('Are you sure you want to start work on this ticket?')) {
+            return;
+        }
+        
+        const btn = document.getElementById('startWorkBtn');
+        const csrftoken = getCsrfToken();
+        
+        console.log('CSRF Token:', csrftoken); // Debug log
+        console.log('Ticket ID:', TICKET_ID); // Debug log
+        
+        if (!csrftoken) {
+            alert('Security token not found. Please refresh the page.');
+            return;
+        }
+        
+        if (btn) {
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
+        }
+        
+        const url = `/contractor/ticket/${TICKET_ID}/start-work/`;
+        console.log('Fetching URL:', url); // Debug log
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log('Response status:', response.status); // Debug log
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data); // Debug log
+            if (data.success) {
+                alert(data.message);
+                // Reload page to show updated status
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to start work'));
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-play-circle me-2"></i>Start Work';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error); // Debug log
+            alert('An error occurred while starting work: ' + error.message);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-play-circle me-2"></i>Start Work';
+            }
+        });
+    }
+    
     // Global state
     let stream = null;
     let capturedImageBlob = null;

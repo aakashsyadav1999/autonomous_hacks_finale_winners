@@ -24,5 +24,6 @@ urlpatterns = [
     
     # Ticket management
     path('ticket/<int:ticket_id>/', views.ticket_detail, name='ticket_detail'),
+    path('ticket/<int:ticket_id>/start-work/', views.start_work, name='start_work'),
     path('ticket/<int:ticket_id>/submit/', views.submit_completion, name='submit_completion'),
 ]
