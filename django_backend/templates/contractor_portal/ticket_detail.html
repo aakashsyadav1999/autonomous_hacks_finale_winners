@@ -243,33 +243,44 @@
                         {% endif %}
                     </div>
                 </div>
-                
-                {% if ticket.suggested_tools %}
-                <div class="info-item">
-                    <div class="info-label">
-                        <i class="bi bi-tools me-1"></i>Suggested Tools
-                    </div>
-                    <div class="info-value">
-                        {% for tool in suggested_tools_list %}
-                        <span class="badge bg-primary me-1 mb-1">{{ tool }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                
-                {% if ticket.safety_equipment %}
-                <div class="info-item">
-                    <div class="info-label">
-                        <i class="bi bi-shield-check me-1"></i>Safety Equipment
-                    </div>
-                    <div class="info-value">
-                        {% for equipment in safety_equipment_list %}
-                        <span class="badge bg-warning me-1 mb-1">{{ equipment }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
+            
+            <!-- Tools and Safety Equipment Section -->
+            {% if ticket.suggested_tools or ticket.safety_equipment %}
+            <div class="alert alert-info border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(13, 110, 253, 0.05));">
+                <div class="row">
+                    {% if ticket.suggested_tools %}
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <h6 class="fw-bold text-primary mb-3">
+                            <i class="bi bi-tools me-2"></i>Suggested Tools
+                        </h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for tool in suggested_tools_list %}
+                            <span class="badge bg-primary" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
+                                <i class="bi bi-wrench me-1"></i>{{ tool }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if ticket.safety_equipment %}
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-warning mb-3">
+                            <i class="bi bi-shield-check me-2"></i>Safety Equipment Required
+                        </h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for equipment in safety_equipment_list %}
+                            <span class="badge bg-warning text-dark" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
+                                <i class="bi bi-shield-fill-check me-1"></i>{{ equipment }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
             
             <div class="info-grid">
                 <div class="info-item">

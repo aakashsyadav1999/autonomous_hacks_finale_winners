@@ -278,12 +278,18 @@ class SubmitComplaintView(APIView):
                 for issue_data in ai_response['data']:
                     ticket_number = generate_ticket_number()
                     
+                    # Convert list fields to comma-separated strings
+                    suggested_tools = ', '.join(issue_data.get('suggested_tools', [])) if issue_data.get('suggested_tools') else ''
+                    safety_equipment = ', '.join(issue_data.get('safety_equipment', [])) if issue_data.get('safety_equipment') else ''
+                    
                     ticket = Ticket.objects.create(
                         ticket_number=ticket_number,
                         civic_complaint=complaint,
                         severity=issue_data['severity'],
                         category=issue_data['category'],
                         department=issue_data['department'],
+                        suggested_tools=suggested_tools,
+                        safety_equipment=safety_equipment,
                         status='SUBMITTED'
                     )
                     
